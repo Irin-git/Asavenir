@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Concours FP — Connexion</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f0f4f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+    .card { border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .card-header { background: #1a3a6b; color: white; border-radius: 16px 16px 0 0 !important; padding: 1.5rem 2rem; }
+    .btn-primary { background: #1a3a6b; border-color: #1a3a6b; }
+    .btn-primary:hover { background: #142f58; border-color: #142f58; }
+    .nav-pills .nav-link.active { background: #1a3a6b; }
+    .nav-pills .nav-link { color: #1a3a6b; }
+    .alert { border-radius: 10px; font-size: 14px; }
+    .logo-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container" style="max-width: 440px;">
+    <div class="card">
+      <div class="card-header text-center">
+        <div class="logo-icon">🏛️</div>
+        <h5 class="mb-0 fw-bold">Concours Fonction Publique</h5>
+        <small style="opacity: 0.8;">Plateforme nationale de recrutement</small>
+      </div>
+      <div class="card-body p-4">
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills nav-fill mb-4" id="authTab">
+          <li class="nav-item">
+            <button class="nav-link active" onclick="showTab('login')">Connexion</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" onclick="showTab('register')">Inscription</button>
+          </li>
+        </ul>
+
+        <div id="alertMsg"></div>
+
+        <!-- Formulaire Connexion -->
+        <form id="loginForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" class="form-control" id="loginEmail" placeholder="votre@email.com" required />
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Mot de passe</label>
+            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2">Se connecter</button>
+        </form>
+
+        <!-- Formulaire Inscription (caché par défaut) -->
+        <form id="registerForm" style="display:none;">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nom complet</label>
+            <input type="text" class="form-control" id="regNom" placeholder="Jean Rakoto" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" class="form-control" id="regEmail" placeholder="votre@email.com" required />
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Mot de passe</label>
+            <input type="password" class="form-control" id="regPassword" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2">Créer mon compte</button>
+        </form>
+
+      </div>
+    </div>
+    <p class="text-center text-muted mt-3" style="font-size: 12px;">
+      Ministère de la Fonction Publique — Plateforme sécurisée
+    </p>
+  </div>
+
+  <script>
+    const API = '/concours_fp/api/index.php';
+
+    function showTab(tab) {
+      document.getElementById('loginForm').style.display = tab === 'login' ? '' : 'none';
+      document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+      document.getElementById('alertMsg').innerHTML = '';
+      document.querySelectorAll('.nav-link').forEach((btn, i) => {
+        btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+      });
+    }
+
+    function showAlert(msg, type = 'danger') {
+      document.getElementById('alertMsg').innerHTML =
+        `<div class="alert alert-${type}">${msg}</div>`;
+    }
+
+    // Connexion
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch(`${API}/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', email, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          showAlert('Connexion réussie ! Redirection...', 'success');
+          setTimeout(() => {
+            window.location.href = data.user.role === 'admin' ? 'admin.html' : 'concours.html';
+          }, 1000);
+        } else {
+          showAlert(data.message || 'Erreur de connexion');
+        }
+      } catch {
+        showAlert('Impossible de contacter le serveur.');
+      }
+    });
+
+    // Inscription
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nom = document.getElementById('regNom').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+
+      try {
+        const res = await fetch(`${API}/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'register', nom, email, password, role: 'candidat' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showAlert('Compte créé ! Connectez-vous maintenant.', 'success');
+          showTab('login');
+        } else {
+          showAlert(data.message || 'Erreur lors de l\'inscription');
+        }
+      } catch {
+        showAlert('Impossible de contacter le serveur.');
+      }
+    });
+
+    // Rediriger si déjà connecté
+    if (localStorage.getItem('token')) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      window.location.href = user.role === 'admin' ? 'admin.html' : 'concours.html';
+    }
+  </script>
+</body>
+</html>
