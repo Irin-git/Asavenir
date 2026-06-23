@@ -29,6 +29,12 @@ switch ($request) {
     case 'documents':
         require 'routes/documents.php';
         break;
+    case 'questions':
+        require 'routes/questions.php';
+        break;
+    case 'epreuves':
+        require 'routes/epreuves.php';
+        break;
     default:
         http_response_code(404);
         echo json_encode(["message" => "Route introuvable"]);

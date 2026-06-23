@@ -47,6 +47,7 @@
           <a href="#" class="sidebar-link" onclick="afficherSection('creer')">➕ Créer un concours</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('liste')">📋 Liste des concours</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('candidatures')">👥 Candidatures</a>
+          <a href="#" class="sidebar-link" onclick="afficherSection('utilisateurs')">👤 Gérer les utilisateurs</a>
           <a href="concours.html" class="sidebar-link">👁️ Vue candidat</a>
         </div>
       </div>
@@ -163,6 +164,35 @@
   </div>
 </div>
 
+        <!-- crée admin -->  
+    <div id="section-utilisateurs" style="display:none;">
+    <p class="section-title">Créer un utilisateur (Admin / Jury)</p>
+    <div class="form-card" style="max-width: 500px;">
+      <div id="alertUser"></div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nom complet</label>
+        <input type="text" class="form-control" id="newNom" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Email</label>
+        <input type="email" class="form-control" id="newEmail" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Mot de passe</label>
+        <input type="password" class="form-control" id="newPassword" />
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Rôle</label>
+        <select class="form-select" id="newRole">
+          <option value="jury">Jury</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn-admin btn" onclick="creerUtilisateur()">Créer l'utilisateur</button>
+    </div>
+  </div>
+</div>
+
   <script>
     const API = '/concours_fp/api/index.php';
     const token = localStorage.getItem('token');
@@ -179,7 +209,8 @@
     function deconnexion() { localStorage.clear(); window.location.href = 'login.html'; }
 
     function afficherSection(nom) {
-      ['dashboard', 'creer', 'liste', 'candidatures'].forEach(s => {
+      ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs'].forEach(s => {
+      if (nom === 'utilisateurs') {} // rien à charger, c'est juste un formulaire
         document.getElementById(`section-${s}`).style.display = s === nom ? '' : 'none';
       });
       document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
@@ -265,6 +296,41 @@
           '<div class="alert alert-danger">Erreur réseau.</div>';
       }
     }
+
+    //Crée un admin
+async function creerUtilisateur() {
+  const nom = document.getElementById('newNom').value.trim();
+  const email = document.getElementById('newEmail').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+
+  if (!nom || !email || !password) {
+    document.getElementById('alertUser').innerHTML =
+      '<div class="alert alert-warning">Remplissez tous les champs.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'create_user', nom, email, password, role })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('alertUser').innerHTML =
+        '<div class="alert alert-success">✅ Utilisateur créé !</div>';
+      ['newNom','newEmail','newPassword'].forEach(id => document.getElementById(id).value = '');
+    } else {
+      document.getElementById('alertUser').innerHTML =
+        `<div class="alert alert-danger">${data.message}</div>`;
+    }
+  } catch {
+    document.getElementById('alertUser').innerHTML =
+      '<div class="alert alert-danger">Erreur réseau.</div>';
+  }
+}
 
 async function chargerCandidatures() {
   try {
