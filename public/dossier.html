@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dossier Candidat</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+    .navbar { background: #1a3a6b; }
+    .card { border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .card-header { background: #1a3a6b; color: white; border-radius: 16px 16px 0 0 !important; }
+    .doc-item { border-left: 4px solid #1a3a6b; background: white; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-4 py-3 d-flex justify-content-between">
+  <span class="navbar-brand fw-bold">🏛️ Dossier du candidat</span>
+  <button class="btn btn-outline-light btn-sm" onclick="window.close()">✖ Fermer</button>
+</nav>
+
+<div class="container py-4">
+  <div id="alertMsg"></div>
+
+  <!-- Infos candidat -->
+  <div class="card mb-4">
+    <div class="card-header p-3">
+      <h6 class="mb-0 fw-bold" id="titreCandidat">Chargement...</h6>
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-0" id="infoCandidature">Chargement...</p>
+    </div>
+  </div>
+
+  <!-- Documents -->
+  <div class="card mb-4">
+    <div class="card-header p-3">
+      <h6 class="mb-0 fw-bold">📂 Documents soumis</h6>
+    </div>
+    <div class="card-body" id="listeDocuments">
+      <p class="text-muted text-center">Chargement...</p>
+    </div>
+  </div>
+
+  <!-- Boutons validation -->
+  <div class="d-flex gap-3 justify-content-end">
+    <button class="btn btn-danger btn-lg" onclick="valider('rejeté')">❌ Rejeter</button>
+    <button class="btn btn-success btn-lg" onclick="valider('validé')">✅ Valider</button>
+  </div>
+</div>
+
+<script>
+  const API = '/concours_fp/api/index.php';
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  if (!token || user.role !== 'admin') {
+    window.location.href = 'login.html';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const candidatureId = params.get('id');
+  const nomCandidat = params.get('nom');
+
+  if (!candidatureId) {
+    document.getElementById('listeDocuments').innerHTML =
+      '<p class="text-danger">ID candidature manquant.</p>';
+  } else {
+    document.getElementById('titreCandidat').textContent = `👤 ${nomCandidat || 'Candidat'}`;
+    document.getElementById('infoCandidature').textContent = `Candidature #${candidatureId}`;
+    chargerDocuments();
+  }
+
+  function showAlert(msg, type = 'danger') {
+    document.getElementById('alertMsg').innerHTML =
+      `<div class="alert alert-${type} alert-dismissible">${msg}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>`;
+  }
+
+  const labels = {
+    cin: '🪪 CIN',
+    photo: '📷 Photo',
+    cv: '📄 CV',
+    diplome: '🎓 Diplôme',
+    acte: '📜 Acte de naissance'
+  };
+
+  async function chargerDocuments() {
+    const res = await fetch(`${API}/documents?candidature_id=${candidatureId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const docs = await res.json();
+    const container = document.getElementById('listeDocuments');
+
+    if (!docs.length) {
+      container.innerHTML = '<p class="text-muted text-center">Aucun document soumis.</p>';
+      return;
+    }
+
+    container.innerHTML = docs.map(d => `
+      <div class="doc-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">${labels[d.type] || d.type}</div>
+          <div class="text-muted" style="font-size:13px;">${d.nom_fichier}</div>
+        </div>
+        <a href="/concours_fp/${d.chemin}" target="_blank" class="btn btn-outline-primary btn-sm">
+          👁️ Ouvrir
+        </a>
+      </div>
+    `).join('');
+  }
+
+  async function valider(statut) {
+    const res = await fetch(`${API}/candidatures`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id: candidatureId, statut })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showAlert(
+        statut === 'validé'
+          ? '✅ Candidature validée ! Retour...'
+          : '❌ Candidature rejetée. Retour...',
+        statut === 'validé' ? 'success' : 'warning'
+      );
+      setTimeout(() => window.close(), 2000);
+    } else {
+      showAlert(data.message || 'Erreur.');
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

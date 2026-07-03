@@ -91,3 +91,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['message' => 'Tous les documents uploadés avec succès', 'succes' => $uploadOk]);
     }
 }
+
+// GET — Récupérer les documents d'une candidature (admin)
+elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $user = verifierToken();
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['message' => 'Réservé à l\'admin']);
+        exit;
+    }
+
+    $candidature_id = $_GET['candidature_id'] ?? null;
+    if (!$candidature_id) {
+        http_response_code(400);
+        echo json_encode(['message' => 'candidature_id manquant']);
+        exit;
+    }
+
+    $conn = (new Database())->connect();
+    $stmt = $conn->prepare("SELECT * FROM documents WHERE candidature_id = ?");
+    $stmt->execute([$candidature_id]);
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+}

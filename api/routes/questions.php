@@ -19,34 +19,55 @@ if ($method === 'POST') {
 
     $conn = (new Database())->connect();
 
-    // 1. Insérer la question
+    // Récupérer les données (FormData au lieu de JSON)
+    $epreuve_id = $_POST['epreuve_id'];
+    $enonce     = $_POST['enonce'];
+    $type       = $_POST['type'];
+    $points     = $_POST['points'];
+    $ordre      = $_POST['ordre'];
+    $choix      = json_decode($_POST['choix'] ?? '[]', true);
+    $media      = null;
+
+    // Si un fichier est joint (étude de cas)
+    if (isset($_FILES['media']) && $_FILES['media']['error'] === 0) {
+        $fichier    = $_FILES['media'];
+        $ext        = strtolower(pathinfo($fichier['name'], PATHINFO_EXTENSION));
+        $autorise   = ['pdf', 'jpg', 'jpeg', 'png'];
+
+        if (!in_array($ext, $autorise)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Format non autorisé (PDF, JPG, PNG uniquement)"]);
+            exit();
+        }
+
+        $nomFichier = uniqid('media_') . '.' . $ext;
+        $destination = __DIR__ . '/../../uploads/medias/' . $nomFichier;
+
+        if (!move_uploaded_file($fichier['tmp_name'], $destination)) {
+            http_response_code(500);
+            echo json_encode(["message" => "Échec de l'upload du fichier"]);
+            exit();
+        }
+
+        $media = $nomFichier; // on stocke juste le nom en base
+    }
+
+    // Insérer la question
     $stmt = $conn->prepare("
         INSERT INTO questions (epreuve_id, enonce, media, type, points, ordre)
         VALUES (?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([
-        $data['epreuve_id'],
-        $data['enonce'],
-        $data['media'] ?? null,
-        $data['type'],
-        $data['points'],
-        $data['ordre']
-    ]);
-
+    $stmt->execute([$epreuve_id, $enonce, $media, $type, $points, $ordre]);
     $question_id = $conn->lastInsertId();
 
-    // 2. Insérer les choix de réponses si present
-    if (!empty($data['choix'])) {
+    // Insérer les choix si présents
+    if (!empty($choix)) {
         $stmtChoix = $conn->prepare("
             INSERT INTO choix_reponses (question_id, texte, est_correcte)
             VALUES (?, ?, ?)
         ");
-        foreach ($data['choix'] as $choix) {
-            $stmtChoix->execute([
-                $question_id,
-                $choix['texte'],
-                $choix['est_correcte'] ? 1 : 0
-            ]);
+        foreach ($choix as $c) {
+            $stmtChoix->execute([$question_id, $c['texte'], $c['est_correcte'] ? 1 : 0]);
         }
     }
 

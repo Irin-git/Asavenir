@@ -48,6 +48,7 @@
           <a href="#" class="sidebar-link" onclick="afficherSection('liste')">📋 Liste des concours</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('candidatures')">👥 Candidatures</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('utilisateurs')">👤 Gérer les utilisateurs</a>
+          <a href="#" class="sidebar-link" onclick="afficherSection('validation')">📝 Validation des sujets</a>
           <a href="concours.html" class="sidebar-link">👁️ Vue candidat</a>
         </div>
       </div>
@@ -86,7 +87,7 @@
             <div id="alertAdmin"></div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Titre du concours</label>
-              <input type="text" class="form-control" id="titre" placeholder="Ex: Concours de recrutement — Enseignants 2025" />
+              <input type="text" class="form-control" id="titre" placeholder="Ex: Concours de recrutement — Enseignants 2026" />
             </div>
             <div class="mb-3">
               <label class="form-label fw-semibold">Description</label>
@@ -193,6 +194,17 @@
   </div>
 </div>
 
+<!-- Validation des sujets -->
+<div id="section-validation" style="display:none;">
+  <p class="section-title">Sujets en attente de validation</p>
+  <div class="form-card">
+    <div id="alertValidation"></div>
+    <div id="listeEpreuvesAttente">
+      <p class="text-muted text-center py-4">Chargement...</p>
+    </div>
+  </div>
+</div>
+
   <script>
     const API = '/concours_fp/api/index.php';
     const token = localStorage.getItem('token');
@@ -209,8 +221,9 @@
     function deconnexion() { localStorage.clear(); window.location.href = 'login.html'; }
 
     function afficherSection(nom) {
-      ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs'].forEach(s => {
-      if (nom === 'utilisateurs') {} // rien à charger, c'est juste un formulaire
+      ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation'].forEach(s => {
+      if (nom === 'validation') chargerEpreuvesAttente();
+        if (nom === 'utilisateurs') {} // rien à charger, c'est juste un formulaire
         document.getElementById(`section-${s}`).style.display = s === nom ? '' : 'none';
       });
       document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
@@ -346,18 +359,20 @@ async function chargerCandidatures() {
     }
 
     document.getElementById('tableauCandidatures').innerHTML = data.map(c => `
-      <tr>
-        <td>${c.id}</td>
-        <td>${c.candidat_nom}</td>
-        <td>${c.concours_titre}</td>
-        ${new Date(c.created_at).toLocaleDateString('fr-FR')}
-        <td>${c.statut}</td>
-        <td>
-          <button class="btn btn-sm btn-success" onclick="validerCandidature(${c.id})">✅ Valider</button>
-          <button class="btn btn-sm btn-danger" onclick="refuserCandidature(${c.id})">❌ Refuser</button>
-        </td>
-      </tr>
-    `).join('');
+  <tr>
+    <td>${c.id}</td>
+    <td>${c.candidat_nom}</td>
+    <td>${c.concours_titre}</td>
+    <td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
+    <td>${c.statut}</td>
+    <td>
+      <a href="dossier.html?id=${c.id}&nom=${encodeURIComponent(c.candidat_nom)}" 
+         target="_blank" class="btn btn-sm btn-outline-primary">👁️ Voir dossier</a>
+      <button class="btn btn-sm btn-success" onclick="validerCandidature(${c.id})">✅ Valider</button>
+      <button class="btn btn-sm btn-danger" onclick="refuserCandidature(${c.id})">❌ Refuser</button>
+    </td>
+  </tr>
+`).join('');
   } catch {
     document.getElementById('tableauCandidatures').innerHTML =
       '<tr><td colspan="6" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
@@ -387,6 +402,100 @@ async function changerStatutCandidature(id, statut) {
     }
   } catch {
     alert('Erreur réseau');
+  }
+}
+
+// Charger les épreuves en attente de validation
+async function chargerEpreuvesAttente() {
+  const res = await fetch(`${API}/epreuves?en_attente=1`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const epreuves = await res.json();
+  const container = document.getElementById('listeEpreuvesAttente');
+
+  if (!epreuves.length) {
+    container.innerHTML = '<p class="text-muted text-center py-4">Aucun sujet en attente. ✅</p>';
+    return;
+  }
+
+container.innerHTML = epreuves.map(e => `
+  <div class="border rounded p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <strong>${e.titre}</strong>
+        <div class="text-muted" style="font-size:13px;">
+          Concours : ${e.concours_titre} • Type : ${e.type} • Durée : ${e.duree} min
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="sujet.html?id=${e.id}" target="_blank" class="btn btn-outline-primary btn-sm">👁️ Voir le sujet</a>
+        <button class="btn btn-success btn-sm" onclick="validerEpreuve(${e.id}, 'approuvé')">✅ Approuver</button>
+        <button class="btn btn-danger btn-sm" onclick="validerEpreuve(${e.id}, 'rejeté')">❌ Rejeter</button>
+      </div>
+    </div>
+    <!-- Zone questions (cachée par défaut) -->
+    <div id="questions-${e.id}" style="display:none;" class="mt-2 border-top pt-2"></div>
+  </div>
+`).join('');
+}
+
+//La vue de l'admin sur le sujet
+async function voirQuestions(epreuve_id) {
+  const zone = document.getElementById(`questions-${epreuve_id}`);
+
+  // Toggle : si déjà visible, on cache
+  if (zone.style.display !== 'none') {
+    zone.style.display = 'none';
+    return;
+  }
+
+  zone.innerHTML = '<p class="text-muted">Chargement...</p>';
+  zone.style.display = '';
+
+  const res = await fetch(`${API}/questions?epreuve_id=${epreuve_id}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const questions = await res.json();
+
+  if (!questions.length) {
+    zone.innerHTML = '<p class="text-muted">Aucune question dans ce sujet.</p>';
+    return;
+  }
+
+  zone.innerHTML = questions.map((q, i) => {
+    const choix = JSON.parse(q.choix || '[]').filter(c => c.texte);
+    const choixHtml = choix.map(c => `
+      <div style="color: ${c.est_correcte ? 'green' : '#666'}; font-size:13px;">
+        ${c.est_correcte ? '✅' : '○'} ${c.texte}
+      </div>
+    `).join('');
+
+    return `
+      <div class="mb-3">
+        <div class="fw-semibold">Q${i+1}. ${q.enonce}</div>
+        <span class="badge bg-light text-dark" style="font-size:11px;">${q.type} • ${q.points} pt(s)</span>
+        <div class="mt-1">${choixHtml || '<small class="text-muted">Correction manuelle</small>'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Approuver ou rejeter une épreuve
+async function validerEpreuve(id, statut) {
+  const res = await fetch(`${API}/epreuves`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ id, statut_validation: statut })
+  });
+  const data = await res.json();
+
+  if (res.ok) {
+    document.getElementById('alertValidation').innerHTML =
+      `<div class="alert alert-success">${data.message}</div>`;
+    chargerEpreuvesAttente(); // rafraîchir la liste
+  } else {
+    document.getElementById('alertValidation').innerHTML =
+      `<div class="alert alert-danger">${data.message || 'Erreur'}</div>`;
   }
 }
 

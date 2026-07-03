@@ -103,8 +103,9 @@
 
         <!-- Media (étude de cas) -->
         <div class="mb-3" id="zoneMedia" style="display:none;">
-          <label class="form-label fw-semibold">Document / Texte de l'étude de cas</label>
-          <textarea class="form-control" id="media" rows="4" placeholder="Collez ici le texte, tableau ou description du document..."></textarea>
+          <label class="form-label fw-semibold">Fichier de l'étude de cas (PDF ou image)</label>
+          <input type="file" class="form-control" id="mediaFichier" accept=".pdf,image/*" />
+          <small class="text-muted">Formats acceptés : PDF, JPG, PNG</small>
         </div>
 
         <!-- Zone dynamique selon le type -->
@@ -137,6 +138,13 @@
     </div>
   </div>
 </div>
+
+    <!-- Bouton envoi à l'admin -->
+    <div class="text-end mt-3" id="btnEnvoiZone" style="display:none;">
+      <button class="btn btn-success btn-lg" onclick="envoyerSujetAdmin()">
+        📨 Envoyer le sujet à l'admin pour validation
+      </button>
+    </div>
 
 <script>
   const API = '/concours_fp/api/index.php';
@@ -188,6 +196,7 @@
 
     if (!concours_id || !titre || !duree) {
       showAlert('Remplis tous les champs obligatoires.');
+      document.getElementById('btnEnvoiZone').style.display = '';
       return;
     }
 
@@ -203,6 +212,7 @@
       document.getElementById('badgeEpreuve').textContent = `Épreuve : ${titre}`;
       document.getElementById('sectionQuestions').style.display = '';
       showAlert('Épreuve créée ! Ajoutez maintenant vos questions. ✅', 'success');
+      document.getElementById('btnEnvoiZone').style.display = '';
       afficherFormulaireQuestion();
     } else {
       showAlert(data.message || 'Erreur lors de la création.');
@@ -256,6 +266,7 @@
         <div class="choix-item">
           <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
           <input type="text" class="form-control form-control-sm texte-choix" placeholder="Choix ${i + 1}" />
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
         </div>`;
     }
     return html;
@@ -266,6 +277,7 @@
       <div class="choix-item">
         <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
         <input type="text" class="form-control form-control-sm texte-choix" placeholder="Nouveau choix" />
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
       </div>
     `);
   }
@@ -296,35 +308,49 @@
   }
 
   // Ajouter une question
-  async function ajouterQuestion() {
-    const type = document.getElementById('typeQuestion').value;
-    const enonce = document.getElementById('enonce').value.trim();
-    const points = document.getElementById('points').value;
-    const media = type === 'etude_de_cas' ? document.getElementById('media').value : null;
-    const choix = construireChoix(type);
+async function ajouterQuestion() {
+  const type = document.getElementById('typeQuestion').value;
+  const enonce = document.getElementById('enonce').value.trim();
+  const points = document.getElementById('points').value;
+  const choix = construireChoix(type);
 
-    if (!enonce) { showAlert('L\'énoncé est obligatoire.'); return; }
+  if (!enonce) { showAlert("L'énoncé est obligatoire."); return; }
 
-    const body = { epreuve_id: epreuveId, enonce, media, type, points, ordre: ordreAuto, choix };
+  // Construire FormData (supporte texte + fichier)
+  const formData = new FormData();
+  formData.append('epreuve_id', epreuveId);
+  formData.append('enonce', enonce);
+  formData.append('type', type);
+  formData.append('points', points);
+  formData.append('ordre', ordreAuto);
+  formData.append('choix', JSON.stringify(choix));
 
-    const res = await fetch(`${API}/questions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      afficherQuestionDansApercu(type, enonce, choix, points, ordreAuto);
-      ordreAuto++;
-      document.getElementById('ordre').value = ordreAuto;
-      document.getElementById('enonce').value = '';
-      if (document.getElementById('media')) document.getElementById('media').value = '';
-      showAlert('Question ajoutée ✅', 'success');
-    } else {
-      showAlert(data.message || 'Erreur.');
-    }
+  // Si étude de cas → joindre le fichier
+  if (type === 'etude_de_cas') {
+    const fichier = document.getElementById('mediaFichier').files[0];
+    if (fichier) formData.append('media', fichier);
   }
+
+  const res = await fetch(`${API}/questions`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }, // ⚠️ pas de Content-Type ici !
+    body: formData
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    afficherQuestionDansApercu(type, enonce, choix, points, ordreAuto);
+    ordreAuto++;
+    document.getElementById('ordre').value = ordreAuto;
+    document.getElementById('enonce').value = '';
+    const mediaFichier = document.getElementById('mediaFichier');
+    if (mediaFichier) mediaFichier.value = '';
+    showAlert('Question ajoutée ✅', 'success');
+  } else {
+    showAlert(data.message || 'Erreur.');
+  }
+}
 
   // Afficher la question dans l'aperçu
   function afficherQuestionDansApercu(type, enonce, choix, points, ordre) {
@@ -362,6 +388,26 @@
 
     document.getElementById('compteurQuestions').textContent = ordreAuto;
   }
+
+  //Envoye du sujet à l'Admin
+  async function envoyerSujetAdmin() {
+  if (!epreuveId) return;
+
+  const res = await fetch(`${API}/epreuves`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+  body: JSON.stringify({ id: epreuveId, statut_validation: 'en_attente' })
+});
+
+  const data = await res.json();
+  if (res.ok) {
+    showAlert('Sujet envoyé à l\'admin ✅ En attente de validation.', 'success');
+    document.getElementById('btnEnvoiZone').style.display = 'none';
+  } else {
+    showAlert(data.message || 'Erreur envoi.');
+  }
+}
+  
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

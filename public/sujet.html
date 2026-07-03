@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sujet — Validation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+    .navbar { background: #1a3a6b; }
+    .card { border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .card-header { background: #1a3a6b; color: white; border-radius: 16px 16px 0 0 !important; }
+    .question-card { border-left: 4px solid #1a3a6b; background: white; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+    .badge-type { background: #e8f0fe; color: #1a3a6b; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-4 py-3">
+  <span class="navbar-brand fw-bold">🏛️ Validation du sujet</span>
+  <button class="btn btn-outline-light btn-sm" onclick="history.back()">← Retour</button>
+</nav>
+
+<div class="container py-4">
+  <div id="alertMsg"></div>
+
+  <!-- Infos épreuve -->
+  <div class="card mb-4">
+    <div class="card-header p-3">
+      <h6 class="mb-0 fw-bold" id="titreEpreuve">Chargement...</h6>
+    </div>
+    <div class="card-body" id="infoEpreuve">
+      <p class="text-muted">Chargement des informations...</p>
+    </div>
+  </div>
+
+  <!-- Liste des questions -->
+  <div class="card mb-4">
+    <div class="card-header p-3">
+      <h6 class="mb-0 fw-bold">❓ Questions du sujet</h6>
+    </div>
+    <div class="card-body" id="listeQuestions">
+      <p class="text-muted text-center">Chargement...</p>
+    </div>
+  </div>
+
+  <!-- Boutons validation -->
+  <div class="d-flex gap-3 justify-content-end">
+    <button class="btn btn-danger btn-lg" onclick="valider('rejeté')">❌ Rejeter</button>
+    <button class="btn btn-success btn-lg" onclick="valider('approuvé')">✅ Approuver</button>
+  </div>
+</div>
+
+<script>
+  const API = '/concours_fp/api/index.php';
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  if (!token || user.role !== 'admin') {
+    window.location.href = 'login.html';
+  }
+
+  // Récupérer l'ID dans l'URL
+  const params = new URLSearchParams(window.location.search);
+  const epreuveId = params.get('id');
+
+  if (!epreuveId) {
+    document.getElementById('listeQuestions').innerHTML =
+      '<p class="text-danger">ID épreuve manquant dans l\'URL.</p>';
+  } else {
+    chargerSujet();
+  }
+
+  function showAlert(msg, type = 'danger') {
+    document.getElementById('alertMsg').innerHTML =
+      `<div class="alert alert-${type} alert-dismissible">${msg}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>`;
+  }
+
+  async function chargerSujet() {
+    const res = await fetch(`${API}/questions?epreuve_id=${epreuveId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const questions = await res.json();
+
+    const labels = {
+      qcm: 'QCM', qrm: 'QRM', vrai_faux: 'Vrai/Faux',
+      completion: 'Complétion', calcul: 'Calcul',
+      ouverte_courte: 'Ouverte courte', ouverte_longue: 'Ouverte longue',
+      etude_de_cas: 'Étude de cas'
+    };
+
+    const container = document.getElementById('listeQuestions');
+
+    if (!questions.length) {
+      container.innerHTML = '<p class="text-muted text-center">Aucune question trouvée.</p>';
+      return;
+    }
+
+    container.innerHTML = questions.map((q, i) => {
+      const choix = JSON.parse(q.choix || '[]').filter(c => c.texte);
+      const choixHtml = choix.map(c => `
+        <div style="color: ${c.est_correcte ? 'green' : '#666'}; margin-bottom: 4px;">
+          ${c.est_correcte ? '✅' : '○'} ${c.texte}
+        </div>
+      `).join('');
+
+      return `
+        <div class="question-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fw-semibold">Q${i+1}. ${q.enonce}</span>
+            <div class="d-flex gap-2">
+              <span class="badge-type">${labels[q.type] || q.type}</span>
+              <span class="badge bg-secondary">${q.points} pt(s)</span>
+            </div>
+          </div>
+          ${choixHtml || '<small class="text-muted">Correction manuelle par le jury</small>'}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function valider(statut) {
+    const res = await fetch(`${API}/epreuves`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id: epreuveId, statut_validation: statut })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showAlert(
+        statut === 'approuvé'
+          ? '✅ Sujet approuvé ! Retour à la liste...'
+          : '❌ Sujet rejeté. Retour à la liste...',
+        statut === 'approuvé' ? 'success' : 'warning'
+      );
+      setTimeout(() => window.close(), 2000);
+    } else {
+      showAlert(data.message || 'Erreur lors de la validation.');
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
