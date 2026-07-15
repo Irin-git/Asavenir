@@ -31,6 +31,7 @@
     <span class="text-white fw-bold fs-6">🏛️ Concours FP</span>
     <div class="d-flex align-items-center gap-3">
       <span class="text-white" id="nomUser" style="font-size: 14px;"></span>
+      <a href="epreuves.html" class="btn btn-sm btn-success">📝 Mes épreuves</a>
       <button class="btn btn-sm btn-outline-light" onclick="deconnexion()">Déconnexion</button>
     </div>
   </nav>
@@ -178,7 +179,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
               <span class="status-badge status-${c.statut}">
-                ${c.statut === 'en_attente' ? '⏳ En attente' : c.statut === 'accepte' ? '✅ Accepté' : '❌ Refusé'}
+                ${c.statut === 'en_attente' ? '⏳ En attente' : c.statut === 'validé' ? '✅ Validé' : '❌ Refusé'}
               </span>
               <button class="btn btn-sm btn-outline-primary" onclick="console.log('id:', ${c.id}); ouvrirModalDocuments(${c.id})">
                 📎 Compléter mon dossier

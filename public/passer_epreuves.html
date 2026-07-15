@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passer l'épreuve</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-primary px-3">
+        <span class="navbar-brand mb-0 h1">Épreuve en cours</span>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <div id="questions-container" class="d-flex flex-column gap-4">
+            <!-- Les questions seront injectées ici -->
+        </div>
+        <button id="btn-soumettre" class="btn btn-primary w-100 mt-4" onclick="soumettreEpreuve()">
+        Soumettre l'épreuve
+    </button>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        // Récupère l'id de l'épreuve depuis l'URL (?id=4)
+        const params = new URLSearchParams(window.location.search);
+        const epreuveId = params.get('id');
+        const candidatureId = params.get('candidature_id');
+
+        if (!epreuveId) {
+            document.getElementById('questions-container').innerHTML =
+                '<p class="text-danger">Aucune épreuve spécifiée.</p>';
+        }
+
+        async function verifierDejaSoumise() {
+    try {
+        const res = await fetch('http://localhost/concours_fp/api/index.php/epreuves?mes_epreuves=1', {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        const epreuves = await res.json();
+        const epreuveActuelle = epreuves.find(ep => ep.id == epreuveId);
+
+        if (epreuveActuelle && epreuveActuelle.deja_soumise == 1) {
+            document.getElementById('questions-container').innerHTML =
+                '<p class="text-danger fw-bold">Vous avez déjà soumis cette épreuve. Accès non autorisé.</p>';
+            document.getElementById('btn-soumettre').style.display = 'none';
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
+async function chargerQuestions() {
+    const bloque = await verifierDejaSoumise();
+    if (bloque) return;
+
+    try {
+        const res = await fetch(`http://localhost/concours_fp/api/index.php/questions?epreuve_id=${epreuveId}`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+                const questions = await res.json();
+                const conteneur = document.getElementById('questions-container');
+                conteneur.innerHTML = '';
+
+                if (questions.length === 0) {
+                    conteneur.innerHTML = '<p class="text-muted">Aucune question pour cette épreuve.</p>';
+                    return;
+                }
+
+                questions.forEach((q, index) => {
+                    const carte = document.createElement('div');
+                    carte.className = 'card shadow-sm p-3';
+
+                    const choix = JSON.parse(q.choix);
+
+                    let choixHtml = '';
+                    if (choix && choix.length > 0 && choix[0].id !== null) {
+                        choixHtml = choix.map(c => `
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="question_${q.id}" value="${c.id}">
+                                <label class="form-check-label">${c.texte}</label>
+                            </div>
+                        `).join('');
+                    } else {
+                        choixHtml = `
+                            <textarea class="form-control" name="question_${q.id}" rows="4" placeholder="Votre réponse..."></textarea>
+                        `;
+                    }
+
+                    carte.innerHTML = `
+                        <h6>Question ${index + 1} (${q.points} pts)</h6>
+                        <p>${q.enonce}</p>
+                        ${choixHtml}
+                    `;
+
+                    conteneur.appendChild(carte);
+                });
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('questions-container').innerHTML =
+                    '<p class="text-danger">Erreur de chargement des questions.</p>';
+            }
+        }
+
+async function soumettreEpreuve() {
+    if (!candidatureId) {
+        alert("Erreur : candidature introuvable.");
+        return;
+    }
+
+    const confirmation = confirm("Une fois soumise, l'épreuve ne pourra plus être modifiée. Confirmer ?");
+    if (!confirmation) return;
+
+    // On ramasse toutes les réponses cochées ou tapées
+    const reponses = [];
+    const cartesQuestions = document.querySelectorAll('#questions-container .card');
+
+    cartesQuestions.forEach(carte => {
+    const radioCoche = carte.querySelector('input[type="radio"]:checked');
+    const zoneTexte = carte.querySelector('textarea');
+
+    if (radioCoche) {
+        const nomChamp = radioCoche.name; // ex: "question_1"
+        const questionId = nomChamp.replace('question_', '');
+        reponses.push({
+            question_id: parseInt(questionId),
+            choix_id: parseInt(radioCoche.value)
+        });
+    } else if (zoneTexte && zoneTexte.value.trim() !== '') {
+        const nomChamp = zoneTexte.name; // ex: "question_3"
+        const questionId = nomChamp.replace('question_', '');
+        reponses.push({
+            question_id: parseInt(questionId),
+            texte_reponse: zoneTexte.value.trim()
+        });
+    }
+});
+
+    if (reponses.length === 0) {
+        alert("Vous n'avez répondu à aucune question.");
+        return;
+    }
+
+    document.getElementById('btn-soumettre').disabled = true;
+    document.getElementById('btn-soumettre').textContent = "Envoi en cours...";
+
+    try {
+        const res = await fetch('http://localhost/concours_fp/api/index.php/reponses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                candidature_id: parseInt(candidatureId),
+                reponses: reponses
+            })
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+            alert("Épreuve soumise avec succès ✅");
+            window.location.href = 'epreuves.html';
+        } else {
+            alert("Erreur : " + result.message);
+            document.getElementById('btn-soumettre').disabled = false;
+            document.getElementById('btn-soumettre').textContent = "Soumettre l'épreuve";
+        }
+
+    } catch (err) {
+        console.error(err);
+        alert("Erreur réseau lors de la soumission.");
+        document.getElementById('btn-soumettre').disabled = false;
+        document.getElementById('btn-soumettre').textContent = "Soumettre l'épreuve";
+    }
+}
+
+        if (epreuveId) {
+            chargerQuestions();
+        }
+    </script>
+
+</body>
+</html>

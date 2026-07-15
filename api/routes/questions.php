@@ -99,7 +99,24 @@ elseif ($method === 'GET') {
         ORDER BY q.ordre
     ");
     $stmt->execute([$epreuve_id]);
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Sécurité : masquer les bonnes réponses si c'est un candidat
+    if ($user->role === 'candidat') {
+        foreach ($questions as &$q) {
+            $choix = json_decode($q['choix'], true);
+            if (is_array($choix)) {
+                foreach ($choix as &$c) {
+                    unset($c['est_correcte']);
+                }
+                unset($c);
+                $q['choix'] = json_encode($choix);
+            }
+        }
+        unset($q);
+    }
+
+    echo json_encode($questions);
 }
 
 else {
