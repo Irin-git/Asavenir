@@ -38,6 +38,9 @@ switch ($request) {
     case 'reponses':
         require 'routes/reponses.php';
         break;
+    case 'exclusions':
+        require 'routes/exclusions.php';
+        break;
     default:
         http_response_code(404);
         echo json_encode(["message" => "Route introuvable"]);

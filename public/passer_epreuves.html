@@ -12,7 +12,22 @@
         <span class="navbar-brand mb-0 h1">Épreuve en cours</span>
     </nav>
 
-    <div class="container mt-4 mb-5">
+    <!-- Écran de démarrage (sas d'entrée) -->
+    <div id="ecran-demarrage" class="container mt-5 text-center d-none">
+        <div class="card shadow-sm p-5">
+            <h4 class="mb-3">Prêt à commencer l'épreuve ?</h4>
+            <p class="text-muted">
+                L'épreuve va s'ouvrir en <strong>mode plein écran</strong>.
+                Ne quittez pas cette fenêtre pendant l'examen.
+            </p>
+            <button id="btn-commencer" class="btn btn-success btn-lg mt-3" onclick="commencerEpreuve()">
+                Commencer l'épreuve
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenu de l'épreuve (caché tant que le plein écran n'est pas actif) -->
+    <div id="zone-epreuve" class="container mt-4 mb-5 d-none">
         <div id="questions-container" class="d-flex flex-column gap-4">
             <!-- Les questions seront injectées ici -->
         </div>
@@ -22,6 +37,7 @@
     </div>
 
     <script>
+        let epreuveCommencee = false; // surveillance activée seulement après le clic "Commencer"
         const token = localStorage.getItem('token');
         if (!token) {
             window.location.href = 'login.html';
@@ -190,8 +206,175 @@ async function soumettreEpreuve() {
     }
 }
 
+        function commencerEpreuve() {
+            const elem = document.documentElement;
+
+            const promesse = elem.requestFullscreen
+                ? elem.requestFullscreen()
+                : elem.webkitRequestFullscreen
+                    ? elem.webkitRequestFullscreen()
+                    : null;
+
+            if (!promesse) {
+                alert("Le mode plein écran n'est pas supporté par votre navigateur.");
+                return;
+            }
+
+            promesse.then(() => {
+                // Plein écran accepté : on cache le sas, on affiche l'épreuve
+                epreuveCommencee = true; // active la surveillance
+                document.getElementById('ecran-demarrage').classList.add('d-none');
+                document.getElementById('zone-epreuve').classList.remove('d-none');
+
+                if (epreuveId) {
+                    chargerQuestions();
+                }
+            }).catch(err => {
+                alert("Vous devez accepter le mode plein écran pour passer l'épreuve.");
+                console.error(err);
+            });
+        }
+
+        let epreuveExclue = false; // évite un déclenchement multiple
+
+        function afficherEcranExclusion(raison) {
+            document.body.innerHTML = `
+                <div style="
+                    position: fixed; top:0; left:0; width:100%; height:100%;
+                    background:black; color:red; display:flex;
+                    flex-direction:column; align-items:center; justify-content:center;
+                    text-align:center; z-index:9999; font-family:sans-serif;
+                ">
+                    <h1>🚫 VOUS ÊTES EXCLU(E) DE L'EXAMEN</h1>
+                    <p style="color:white; margin-top:1rem;">
+                        Tentative de fraude détectée : ${raison}
+                    </p>
+                </div>
+            `;
+        }
+
+        async function enregistrerExclusion(raison) {
+            try {
+                await fetch('http://localhost/concours_fp/api/index.php/exclusions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        candidature_id: parseInt(candidatureId),
+                        epreuve_id: parseInt(epreuveId),
+                        raison: raison
+                    })
+                });
+            } catch (err) {
+                console.error("Erreur enregistrement exclusion :", err);
+            }
+        }
+
+        function exclureCandidat(raison) {
+            if (epreuveExclue) return; // déjà exclu, on ne fait rien de plus
+            epreuveExclue = true;
+
+            console.warn("Exclusion déclenchée :", raison);
+
+            // 1. On enregistre le flag d'exclusion en base (priorité absolue)
+            enregistrerExclusion(raison);
+
+            // 2. On soumet automatiquement ce qui a déjà été répondu
+            soumettreEpreuveAutomatique();
+
+            // 3. Écran noir bloquant
+            afficherEcranExclusion(raison);
+        }
+
+        async function soumettreEpreuveAutomatique() {
+            if (!candidatureId) return;
+
+            const reponses = [];
+            const cartesQuestions = document.querySelectorAll('#questions-container .card');
+
+            cartesQuestions.forEach(carte => {
+                const radioCoche = carte.querySelector('input[type="radio"]:checked');
+                const zoneTexte = carte.querySelector('textarea');
+
+                if (radioCoche) {
+                    const questionId = radioCoche.name.replace('question_', '');
+                    reponses.push({
+                        question_id: parseInt(questionId),
+                        choix_id: parseInt(radioCoche.value)
+                    });
+                } else if (zoneTexte && zoneTexte.value.trim() !== '') {
+                    const questionId = zoneTexte.name.replace('question_', '');
+                    reponses.push({
+                        question_id: parseInt(questionId),
+                        texte_reponse: zoneTexte.value.trim()
+                    });
+                }
+            });
+
+            try {
+                await fetch('http://localhost/concours_fp/api/index.php/reponses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        candidature_id: parseInt(candidatureId),
+                        reponses: reponses
+                    })
+                });
+            } catch (err) {
+                console.error("Erreur soumission automatique :", err);
+            }
+        }
+
+        // --- Les 3 vigiles ---
+
+        document.addEventListener('visibilitychange', function() {
+            if (epreuveCommencee && document.hidden && !epreuveExclue) {
+                exclureCandidat("changement d'onglet ou réduction de fenêtre");
+            }
+        });
+
+        window.addEventListener('blur', function() {
+            setTimeout(() => {
+                if (epreuveCommencee && !document.hasFocus() && !epreuveExclue) {
+                    exclureCandidat("perte de focus (autre application ouverte)");
+                }
+            }, 300);
+        });
+
+        document.addEventListener('fullscreenchange', function() {
+            if (epreuveCommencee && !document.fullscreenElement && !epreuveExclue) {
+                exclureCandidat("sortie du mode plein écran");
+            }
+        });
+
+        async function verifierAcces() {
+            try {
+                const res = await fetch('http://localhost/concours_fp/api/index.php/epreuves?mes_epreuves=1', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const epreuves = await res.json();
+                const epreuveActuelle = epreuves.find(ep => ep.id == epreuveId);
+
+                if (epreuveActuelle && epreuveActuelle.est_exclu == 1) {
+                    afficherEcranExclusion("accès bloqué suite à une exclusion déjà enregistrée");
+                    return;
+                }
+
+                document.getElementById('ecran-demarrage').classList.remove('d-none');
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('ecran-demarrage').classList.remove('d-none');
+            }
+        }
+
         if (epreuveId) {
-            chargerQuestions();
+            verifierAcces();
         }
     </script>
 

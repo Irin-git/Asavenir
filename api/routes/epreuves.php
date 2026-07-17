@@ -26,7 +26,8 @@ if ($method === 'POST') {
 
     if ($mes_epreuves) {
     $sql = "SELECT e.*, c.titre AS concours_titre, cd.id AS candidature_id, (e.date_epreuve <= NOW()) AS est_accessible,
-        EXISTS (SELECT 1 FROM reponses r WHERE r.candidature_id = cd.id) AS deja_soumise
+        EXISTS (SELECT 1 FROM reponses r WHERE r.candidature_id = cd.id) AS deja_soumise,
+        EXISTS (SELECT 1 FROM exclusions ex WHERE ex.candidature_id = cd.id AND ex.epreuve_id = e.id) AS est_exclu
         FROM epreuves e
         JOIN concours c ON c.id = e.concours_id
         JOIN candidatures cd ON cd.concours_id = e.concours_id
