@@ -44,6 +44,40 @@ if ($method === 'POST') {
         exit();
     }
 
+    // On récupère l'epreuve_id à partir de la première question, pour vérifier l'exclusion
+    $epreuve_id = null;
+    if (count($reponses) > 0 && isset($reponses[0]['question_id'])) {
+        $stmtEpreuve = $conn->prepare("SELECT epreuve_id FROM questions WHERE id = ?");
+        $stmtEpreuve->execute([$reponses[0]['question_id']]);
+        $ligneEpreuve = $stmtEpreuve->fetch(PDO::FETCH_ASSOC);
+        $epreuve_id = $ligneEpreuve ? $ligneEpreuve['epreuve_id'] : null;
+    }
+
+    // Vérifie si cette candidature est exclue de cette épreuve (fraude détectée)
+    $candidatExclu = false;
+    if ($epreuve_id) {
+        $stmtExclu = $conn->prepare("SELECT id FROM exclusions WHERE candidature_id = ? AND epreuve_id = ?");
+        $stmtExclu->execute([$candidature_id, $epreuve_id]);
+        $candidatExclu = (bool) $stmtExclu->fetch();
+    }
+
+    // On récupère l'epreuve_id à partir de la première question, pour vérifier l'exclusion
+    $epreuve_id = null;
+    if (count($reponses) > 0 && isset($reponses[0]['question_id'])) {
+        $stmtEpreuve = $conn->prepare("SELECT epreuve_id FROM questions WHERE id = ?");
+        $stmtEpreuve->execute([$reponses[0]['question_id']]);
+        $ligneEpreuve = $stmtEpreuve->fetch(PDO::FETCH_ASSOC);
+        $epreuve_id = $ligneEpreuve ? $ligneEpreuve['epreuve_id'] : null;
+    }
+
+    // Vérifie si cette candidature est exclue de cette épreuve (fraude détectée)
+    $candidatExclu = false;
+    if ($epreuve_id) {
+        $stmtExclu = $conn->prepare("SELECT id FROM exclusions WHERE candidature_id = ? AND epreuve_id = ?");
+        $stmtExclu->execute([$candidature_id, $epreuve_id]);
+        $candidatExclu = (bool) $stmtExclu->fetch();
+    }
+
     try {
         $conn->beginTransaction();
 
@@ -62,8 +96,11 @@ if ($method === 'POST') {
 
             if (!$question_id) continue; // on saute une réponse mal formée
 
-            if ($choix_id) {
-                // Cas QCM : on vérifie si le choix coché est le bon
+            if ($candidatExclu) {
+                // Fraude détectée : la note est forcée à 0, peu importe la réponse donnée
+                $est_correcte = 0;
+            } elseif ($choix_id) {
+                // Cas QCM normal : on vérifie si le choix coché est le bon
                 $stmtChoix->execute([$choix_id]);
                 $choix = $stmtChoix->fetch(PDO::FETCH_ASSOC);
                 $est_correcte = $choix ? (int)$choix['est_correcte'] : 0;

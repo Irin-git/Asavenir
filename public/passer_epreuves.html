@@ -28,6 +28,9 @@
 
     <!-- Contenu de l'épreuve (caché tant que le plein écran n'est pas actif) -->
     <div id="zone-epreuve" class="container mt-4 mb-5 d-none">
+        <div id="minuteur" class="alert alert-info text-center fw-bold fs-4 sticky-top">
+            Temps restant : <span id="minuteur-texte">--h --min --s</span>
+        </div>
         <div id="questions-container" class="d-flex flex-column gap-4">
             <!-- Les questions seront injectées ici -->
         </div>
@@ -38,6 +41,8 @@
 
     <script>
         let epreuveCommencee = false; // surveillance activée seulement après le clic "Commencer"
+        let epreuveActuelleGlobale = null; // stocke les infos de l'épreuve (dont la durée)
+        let intervalMinuteur = null; // référence au setInterval du minuteur
         const token = localStorage.getItem('token');
         if (!token) {
             window.location.href = 'login.html';
@@ -229,6 +234,8 @@ async function soumettreEpreuve() {
                 if (epreuveId) {
                     chargerQuestions();
                 }
+
+                demarrerMinuteur();
             }).catch(err => {
                 alert("Vous devez accepter le mode plein écran pour passer l'épreuve.");
                 console.error(err);
@@ -238,6 +245,9 @@ async function soumettreEpreuve() {
         let epreuveExclue = false; // évite un déclenchement multiple
 
         function afficherEcranExclusion(raison) {
+            if (intervalMinuteur) {
+                clearInterval(intervalMinuteur);
+            }
             document.body.innerHTML = `
                 <div style="
                     position: fixed; top:0; left:0; width:100%; height:100%;
@@ -257,6 +267,7 @@ async function soumettreEpreuve() {
             try {
                 await fetch('http://localhost/concours_fp/api/index.php/exclusions', {
                     method: 'POST',
+                    keepalive: 'true',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
@@ -278,14 +289,12 @@ async function soumettreEpreuve() {
 
             console.warn("Exclusion déclenchée :", raison);
 
-            // 1. On enregistre le flag d'exclusion en base (priorité absolue)
-            enregistrerExclusion(raison);
-
-            // 2. On soumet automatiquement ce qui a déjà été répondu
-            soumettreEpreuveAutomatique();
-
-            // 3. Écran noir bloquant
-            afficherEcranExclusion(raison);
+            // On enchaîne : exclusion d'abord (garantie), puis soumission forcée à 0, puis écran noir
+            (async () => {
+                await enregistrerExclusion(raison); // 1. flag posé en priorité
+                await soumettreEpreuveAutomatique(); // 2. réponses envoyées (seront notées 0 côté serveur)
+                afficherEcranExclusion(raison); // 3. écran bloquant
+            })();
         }
 
         async function soumettreEpreuveAutomatique() {
@@ -352,6 +361,51 @@ async function soumettreEpreuve() {
             }
         });
 
+        function demarrerMinuteur() {
+            if (!epreuveActuelleGlobale || !epreuveActuelleGlobale.duree) {
+                console.warn("Durée de l'épreuve introuvable, minuteur non démarré.");
+                return;
+            }
+
+            let secondesRestantes = epreuveActuelleGlobale.duree * 60;
+
+            afficherMinuteur(secondesRestantes);
+
+            intervalMinuteur = setInterval(() => {
+                secondesRestantes--;
+
+                afficherMinuteur(secondesRestantes);
+
+                if (secondesRestantes <= 0) {
+                    clearInterval(intervalMinuteur);
+                    tempsEcoule();
+                }
+            }, 1000);
+        }
+
+        function afficherMinuteur(secondesRestantes) {
+            const heures = Math.floor(secondesRestantes / 3600);
+            const minutes = Math.floor((secondesRestantes % 3600) / 60);
+            const secondes = secondesRestantes % 60;
+
+            const texte = `${String(heures).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}min ${String(secondes).padStart(2, '0')}s`;
+            document.getElementById('minuteur-texte').textContent = texte;
+
+            const boiteMinuteur = document.getElementById('minuteur');
+            if (secondesRestantes <= 60) {
+                boiteMinuteur.classList.remove('alert-info');
+                boiteMinuteur.classList.add('alert-danger');
+            }
+        }
+
+        function tempsEcoule() {
+            if (epreuveExclue) return; // sécurité si déjà exclu entre-temps
+
+            alert("⏰ Le temps imparti est écoulé. Votre épreuve va être soumise automatiquement.");
+            soumettreEpreuveAutomatique();
+            window.location.href = 'epreuves.html';
+        }
+
         async function verifierAcces() {
             try {
                 const res = await fetch('http://localhost/concours_fp/api/index.php/epreuves?mes_epreuves=1', {
@@ -359,6 +413,7 @@ async function soumettreEpreuve() {
                 });
                 const epreuves = await res.json();
                 const epreuveActuelle = epreuves.find(ep => ep.id == epreuveId);
+                epreuveActuelleGlobale = epreuveActuelle; // on garde l'info pour le minuteur
 
                 if (epreuveActuelle && epreuveActuelle.est_exclu == 1) {
                     afficherEcranExclusion("accès bloqué suite à une exclusion déjà enregistrée");
@@ -372,6 +427,8 @@ async function soumettreEpreuve() {
                 document.getElementById('ecran-demarrage').classList.remove('d-none');
             }
         }
+
+        
 
         if (epreuveId) {
             verifierAcces();

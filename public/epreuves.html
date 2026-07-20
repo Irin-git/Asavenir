@@ -55,11 +55,13 @@
                             <p class="card-text mb-1"><strong>Type :</strong> ${ep.type}</p>
                             <p class="card-text mb-1"><strong>Durée :</strong> ${ep.duree} min</p>
                             <p class="card-text mb-2"><strong>Date :</strong> ${dateFormatee}</p>
-                            ${ep.deja_soumise == 1
-                                ? `<button class="btn btn-danger w-100" disabled>✅ Épreuve déjà soumise</button>`
-                                : ep.est_accessible == 1
-                                    ? `<button class="btn btn-success w-100" onclick="window.location.href='passer_epreuves.html?id=${ep.id}&candidature_id=${ep.candidature_id}'">Passer l'épreuve</button>`
-                                    : `<button class="btn btn-secondary w-100" disabled>Pas encore accessible</button>`
+                            ${ep.est_exclu == 1
+                                ? `<button class="btn btn-dark w-100" disabled>🚫 Exclu(e) de l'épreuve</button>`
+                                : ep.deja_soumise == 1
+                                    ? `<button class="btn btn-danger w-100" disabled>✅ Épreuve déjà soumise</button>`
+                                    : ep.est_accessible == 1
+                                        ? `<button class="btn btn-success w-100" onclick="window.location.href='passer_epreuves.html?id=${ep.id}&candidature_id=${ep.candidature_id}'">Passer l'épreuve</button>`
+                                        : `<button class="btn btn-secondary w-100" disabled>Pas encore accessible</button>`
                             }
                         </div>
                     `;
