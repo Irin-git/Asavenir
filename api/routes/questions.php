@@ -11,9 +11,9 @@ $user = verifierToken();
 // POST — Créer une question
 // =====================
 if ($method === 'POST') {
-    if ($user->role !== 'jury') {
+    if ($user->role !== 'admin') {
         http_response_code(403);
-        echo json_encode(["message" => "Réservé au jury"]);
+        echo json_encode(["message" => "Réservé au l'administrateur"]);
         exit();
     }
 
@@ -117,6 +117,67 @@ elseif ($method === 'GET') {
     }
 
     echo json_encode($questions);
+}
+
+// =====================
+// DELETE — Supprimer une question + réordonner
+// =====================
+elseif ($method === 'DELETE') {
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Réservé à l'administrateur"]);
+        exit();
+    }
+
+    $question_id = $data['id'] ?? null;
+    if (!$question_id) {
+        http_response_code(400);
+        echo json_encode(["message" => "id manquant"]);
+        exit();
+    }
+
+    $conn = (new Database())->connect();
+
+    // Récupérer l'épreuve liée pour vérifier le verrou temporel
+    $stmt = $conn->prepare("
+        SELECT e.id AS epreuve_id, e.date_epreuve
+        FROM questions q
+        JOIN epreuves e ON e.id = q.epreuve_id
+        WHERE q.id = ?
+    ");
+    $stmt->execute([$question_id]);
+    $epreuve = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$epreuve) {
+        http_response_code(404);
+        echo json_encode(["message" => "Question introuvable"]);
+        exit();
+    }
+
+    // Verrou temporel : interdiction si l'épreuve a déjà commencé
+    if (strtotime($epreuve['date_epreuve']) <= time()) {
+        http_response_code(403);
+        echo json_encode(["message" => "Modification impossible : l'épreuve a déjà débuté ou est terminée"]);
+        exit();
+    }
+
+    // Suppression (choix_reponses puis question)
+    $conn->prepare("DELETE FROM choix_reponses WHERE question_id = ?")->execute([$question_id]);
+    $conn->prepare("DELETE FROM questions WHERE id = ?")->execute([$question_id]);
+
+    // Réordonnancement des questions restantes
+    $stmt = $conn->prepare("SELECT id FROM questions WHERE epreuve_id = ? ORDER BY ordre");
+    $stmt->execute([$epreuve['epreuve_id']]);
+    $restantes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $update = $conn->prepare("UPDATE questions SET ordre = ? WHERE id = ?");
+    $nouvelOrdre = 1;
+    foreach ($restantes as $qid) {
+        $update->execute([$nouvelOrdre, $qid]);
+        $nouvelOrdre++;
+    }
+
+    echo json_encode(["message" => "Question supprimée et ordre mis à jour ✅"]);
 }
 
 else {

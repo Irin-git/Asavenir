@@ -9,17 +9,11 @@
     body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
     .navbar { background: #1a3a6b; }
     .card { border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-    .card-header { background: #1a3a6b; color: white; border-radius: 16px 16px 0 0 !important; }
-    .btn-primary { background: #1a3a6b; border-color: #1a3a6b; }
-    .btn-primary:hover { background: #142f58; }
-    .question-card { border-left: 4px solid #1a3a6b; background: white; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
-    .badge-type { background: #e8f0fe; color: #1a3a6b; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
-    .choix-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .reponse-card { border-left: 4px solid #1a3a6b; }
   </style>
 </head>
 <body>
 
-<!-- Navbar -->
 <nav class="navbar navbar-dark px-4 py-3">
   <span class="navbar-brand fw-bold">🏛️ Espace Jury</span>
   <div class="d-flex align-items-center gap-3">
@@ -29,386 +23,248 @@
 </nav>
 
 <div class="container py-4">
-  <div id="alertMsg"></div>
 
-  <!-- ÉTAPE 1 : Créer une épreuve -->
-  <div class="card mb-4">
-    <div class="card-header p-3">
-      <h6 class="mb-0 fw-bold">📋 Étape 1 — Créer une épreuve</h6>
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Concours</label>
-          <select class="form-select" id="selectConcours">
-            <option value="">Chargement...</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Titre de l'épreuve</label>
-          <input type="text" class="form-control" id="titreEpreuve" placeholder="Ex: Culture générale" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Type</label>
-          <select class="form-select" id="typeEpreuve">
-            <option value="mixte">Mixte</option>
-            <option value="qcm">QCM uniquement</option>
-            <option value="texte_libre">Texte libre</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Durée (minutes)</label>
-          <input type="number" class="form-control" id="dureeEpreuve" placeholder="60" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Date de l'épreuve</label>
-          <input type="datetime-local" class="form-control" id="dateEpreuve" />
-        </div>
-        <div class="col-12">
-          <button class="btn btn-primary" onclick="creerEpreuve()">✅ Créer l'épreuve</button>
-        </div>
+  <div class="card p-4 mb-4">
+    <h6 class="fw-bold mb-3">📋 Sélectionner une épreuve à corriger</h6>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Concours</label>
+        <select class="form-select" id="selectConcoursJury" onchange="chargerEpreuvesJury()">
+          <option value="">Chargement...</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Épreuve</label>
+        <select class="form-select" id="selectEpreuveJury" onchange="chargerReponsesJury()">
+          <option value="">Sélectionnez d'abord un concours</option>
+        </select>
       </div>
     </div>
   </div>
 
-  <!-- ÉTAPE 2 : Ajouter des questions (caché jusqu'à épreuve créée) -->
-  <div id="sectionQuestions" style="display:none;">
-    <div class="card mb-4">
-      <div class="card-header p-3 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold">❓ Étape 2 — Ajouter des questions</h6>
-        <span class="badge bg-light text-dark" id="badgeEpreuve"></span>
-      </div>
-      <div class="card-body">
+  <div id="alertMsgJury"></div>
 
-        <!-- Type de question -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Type de question</label>
-          <select class="form-select" id="typeQuestion" onchange="afficherFormulaireQuestion()">
-            <option value="qcm">QCM — Une seule bonne réponse</option>
-            <option value="qrm">QRM — Plusieurs bonnes réponses</option>
-            <option value="vrai_faux">Vrai / Faux</option>
-            <option value="completion">Complétion de texte</option>
-            <option value="calcul">Calcul numérique</option>
-            <option value="ouverte_courte">Question ouverte courte</option>
-            <option value="ouverte_longue">Question ouverte longue</option>
-            <option value="etude_de_cas">Étude de cas</option>
-          </select>
-        </div>
+  <div id="zoneReponsesJury"></div>
 
-        <!-- Énoncé -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Énoncé</label>
-          <textarea class="form-control" id="enonce" rows="2" placeholder="Écrivez la question ici..."></textarea>
-        </div>
-
-        <!-- Media (étude de cas) -->
-        <div class="mb-3" id="zoneMedia" style="display:none;">
-          <label class="form-label fw-semibold">Fichier de l'étude de cas (PDF ou image)</label>
-          <input type="file" class="form-control" id="mediaFichier" accept=".pdf,image/*" />
-          <small class="text-muted">Formats acceptés : PDF, JPG, PNG</small>
-        </div>
-
-        <!-- Zone dynamique selon le type -->
-        <div id="zoneChoix"></div>
-
-        <!-- Points et ordre -->
-        <div class="row g-3 mt-1">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Points</label>
-            <input type="number" class="form-control" id="points" value="1" step="0.5" />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Ordre</label>
-            <input type="number" class="form-control" id="ordre" value="1" />
-          </div>
-        </div>
-
-        <button class="btn btn-primary mt-3" onclick="ajouterQuestion()">➕ Ajouter la question</button>
-      </div>
-    </div>
-
-    <!-- Aperçu des questions -->
-    <div class="card">
-      <div class="card-header p-3">
-        <h6 class="mb-0 fw-bold">👁️ Aperçu des questions <span id="compteurQuestions" class="badge bg-light text-dark ms-2">0</span></h6>
-      </div>
-      <div class="card-body" id="listeQuestions">
-        <p class="text-muted text-center">Aucune question ajoutée pour l'instant.</p>
-      </div>
-    </div>
-  </div>
 </div>
-
-    <!-- Bouton envoi à l'admin -->
-    <div class="text-end mt-3" id="btnEnvoiZone" style="display:none;">
-      <button class="btn btn-success btn-lg" onclick="envoyerSujetAdmin()">
-        📨 Envoyer le sujet à l'admin pour validation
-      </button>
-    </div>
 
 <script>
   const API = '/concours_fp/api/index.php';
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // Vérification accès jury
   if (!token || user.role !== 'jury') {
     window.location.href = 'login.html';
   }
 
   document.getElementById('nomJury').textContent = user.nom || 'Jury';
 
-  let epreuveId = null;
-  let ordreAuto = 1;
-
   function deconnexion() {
     localStorage.clear();
     window.location.href = 'login.html';
   }
 
-  function showAlert(msg, type = 'danger') {
-    document.getElementById('alertMsg').innerHTML =
-      `<div class="alert alert-${type} alert-dismissible">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+  function showAlertJury(msg, type = 'danger') {
+    document.getElementById('alertMsgJury').innerHTML =
+      `<div class="alert alert-${type}">${msg}</div>`;
   }
 
-  // Charger les concours
-  async function chargerConcours() {
+  // ===== Chargement des concours =====
+  async function chargerConcoursJury() {
     const res = await fetch(`${API}/concours`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
-    const sel = document.getElementById('selectConcours');
-    sel.innerHTML = '<option value="">-- Choisir un concours --</option>';
+
+    const select = document.getElementById('selectConcoursJury');
+    select.innerHTML = '<option value="">-- Choisir un concours --</option>';
     data.forEach(c => {
-      sel.innerHTML += `<option value="${c.id}">${c.titre}</option>`;
+      select.innerHTML += `<option value="${c.id}">${c.titre}</option>`;
     });
   }
 
-  chargerConcours();
+  // ===== Chargement des épreuves approuvées du concours choisi =====
+  async function chargerEpreuvesJury() {
+    const concours_id = document.getElementById('selectConcoursJury').value;
+    const selectEpreuve = document.getElementById('selectEpreuveJury');
+    document.getElementById('zoneReponsesJury').innerHTML = '';
 
-  // Créer une épreuve
-  async function creerEpreuve() {
-    const concours_id = document.getElementById('selectConcours').value;
-    const titre = document.getElementById('titreEpreuve').value;
-    const type = document.getElementById('typeEpreuve').value;
-    const duree = document.getElementById('dureeEpreuve').value;
-    const date_epreuve = document.getElementById('dateEpreuve').value;
-
-    if (!concours_id || !titre || !duree) {
-      showAlert('Remplis tous les champs obligatoires.');
-      document.getElementById('btnEnvoiZone').style.display = '';
+    if (!concours_id) {
+      selectEpreuve.innerHTML = '<option value="">Sélectionnez d\'abord un concours</option>';
       return;
     }
 
-    const res = await fetch(`${API}/epreuves`, {
+    const res = await fetch(`${API}/epreuves?concours_id=${concours_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    // Seules les épreuves approuvées sont proposées à la correction
+    const approuvees = data.filter(e => e.statut_validation === 'approuvé');
+
+    if (approuvees.length === 0) {
+      selectEpreuve.innerHTML = '<option value="">Aucune épreuve approuvée</option>';
+      return;
+    }
+
+    selectEpreuve.innerHTML = '<option value="">-- Choisir une épreuve --</option>';
+    approuvees.forEach(e => {
+      selectEpreuve.innerHTML += `<option value="${e.id}">${e.titre} (coeff. ${e.coefficient})</option>`;
+    });
+  }
+
+  // ===== Gestion des copies (regroupement par candidature) =====
+  let copiesJury = [];      // liste des copies restantes à corriger
+  let indexCopieJury = 0;   // position dans la liste (pour le numéro affiché)
+
+  // ===== Chargement des réponses ouvertes à corriger, regroupées par copie =====
+  async function chargerReponsesJury() {
+    const epreuve_id = document.getElementById('selectEpreuveJury').value;
+    const zone = document.getElementById('zoneReponsesJury');
+    zone.innerHTML = '';
+    document.getElementById('alertMsgJury').innerHTML = '';
+
+    if (!epreuve_id) return;
+
+    const res = await fetch(`${API}/resultats?a_corriger=1&epreuve_id=${epreuve_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAlertJury(data.message || 'Erreur lors du chargement.');
+      return;
+    }
+
+    // Regroupement des réponses par candidature_id (= une copie)
+    const groupes = {};
+    data.forEach(r => {
+      if (!groupes[r.candidature_id]) groupes[r.candidature_id] = [];
+      groupes[r.candidature_id].push(r);
+    });
+
+    copiesJury = Object.keys(groupes).map(cid => ({
+      candidature_id: cid,
+      reponses: groupes[cid]
+    }));
+    indexCopieJury = 0;
+
+    afficherCopieCourante();
+  }
+
+  // ===== Affiche la copie courante (une seule à la fois) =====
+  function afficherCopieCourante() {
+    const zone = document.getElementById('zoneReponsesJury');
+
+    if (copiesJury.length === 0) {
+      zone.innerHTML = `<div class="alert alert-info">Toutes les copies de cette épreuve sont corrigées ✅</div>`;
+      return;
+    }
+
+    const copie = copiesJury[0]; // toujours la première restante
+    indexCopieJury++;
+
+    const questionsHtml = copie.reponses.map(r => `
+      <div class="mb-4">
+        <p class="fw-semibold mb-1">Question :</p>
+        <p class="mb-2">${r.enonce}</p>
+        <p class="fw-semibold mb-1">Réponse du candidat :</p>
+        <p class="mb-2 text-muted">${r.texte_reponse}</p>
+        <label class="form-label fw-semibold">Note (sur ${r.bareme})</label>
+        <input type="number" step="0.5" min="0" max="${r.bareme}"
+               class="form-control" style="max-width:150px"
+               data-reponse-id="${r.reponse_id}" data-bareme="${r.bareme}" />
+        <hr class="mt-4">
+      </div>
+    `).join('');
+
+    zone.innerHTML = `
+      <div class="card reponse-card p-4 mb-3">
+        <h6 class="fw-bold mb-3">📄 Copie #${indexCopieJury} <span class="text-muted fw-normal">(anonyme)</span></h6>
+        ${questionsHtml}
+        <button class="btn btn-primary" onclick="validerCopieJury('${copie.candidature_id}')">
+          ✅ Valider la correction de cette copie
+        </button>
+      </div>
+    `;
+  }
+
+  // ===== Validation de toute une copie en un seul clic =====
+  async function validerCopieJury(candidature_id) {
+    const inputs = document.querySelectorAll('#zoneReponsesJury input[data-reponse-id]');
+    const notes = [];
+
+    for (const input of inputs) {
+      const reponse_id = input.dataset.reponseId;
+      const bareme = parseFloat(input.dataset.bareme);
+      const points_obtenus = parseFloat(input.value);
+
+      if (isNaN(points_obtenus) || points_obtenus < 0 || points_obtenus > bareme) {
+        showAlertJury(`Chaque note doit être remplie et comprise entre 0 et son barème.`);
+        return;
+      }
+      notes.push({ reponse_id, points_obtenus });
+    }
+
+    const confirmation = confirm(
+      `⚠️ Attention : une fois validée, la correction de cette copie ne pourra plus être modifiée.\n\nConfirmer la validation de cette copie complète ?`
+    );
+    if (!confirmation) return;
+
+    // Envoi séquentiel de toutes les notes de la copie
+    for (const note of notes) {
+      const res = await fetch(`${API}/resultats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(note)
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showAlertJury(data.message || 'Erreur lors de l\'enregistrement d\'une note.');
+        return;
+      }
+    }
+
+    showAlertJury('Copie corrigée avec succès ✅', 'success');
+
+    // Retire la copie traitée et passe automatiquement à la suivante
+    copiesJury.shift();
+    afficherCopieCourante();
+  }
+
+  // ===== Validation d'une note (définitive) =====
+  async function validerNote(reponse_id, bareme) {
+    const input = document.getElementById(`note_${reponse_id}`);
+    const points_obtenus = parseFloat(input.value);
+
+    if (isNaN(points_obtenus) || points_obtenus < 0 || points_obtenus > bareme) {
+      showAlertJury(`La note doit être comprise entre 0 et ${bareme}.`);
+      return;
+    }
+
+    const confirmation = confirm(
+      `⚠️ Attention : une fois validée, cette note ne pourra plus être modifiée.\n\nConfirmer la note de ${points_obtenus}/${bareme} ?`
+    );
+    if (!confirmation) return;
+
+    const res = await fetch(`${API}/resultats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ concours_id, titre, type, duree, date_epreuve })
+      body: JSON.stringify({ reponse_id, points_obtenus })
     });
     const data = await res.json();
 
     if (res.ok) {
-      epreuveId = data.id;
-      document.getElementById('badgeEpreuve').textContent = `Épreuve : ${titre}`;
-      document.getElementById('sectionQuestions').style.display = '';
-      showAlert('Épreuve créée ! Ajoutez maintenant vos questions. ✅', 'success');
-      document.getElementById('btnEnvoiZone').style.display = '';
-      afficherFormulaireQuestion();
+      showAlertJury('Note enregistrée avec succès ✅', 'success');
+      chargerReponsesJury(); // Rafraîchit la liste (la copie notée disparaît)
     } else {
-      showAlert(data.message || 'Erreur lors de la création.');
+      showAlertJury(data.message || 'Erreur lors de l\'enregistrement.');
     }
   }
 
-  // Afficher le bon formulaire selon le type
-  function afficherFormulaireQuestion() {
-    const type = document.getElementById('typeQuestion').value;
-    const zoneChoix = document.getElementById('zoneChoix');
-    const zoneMedia = document.getElementById('zoneMedia');
-
-    zoneMedia.style.display = type === 'etude_de_cas' ? '' : 'none';
-
-    if (['qcm', 'qrm'].includes(type)) {
-      zoneChoix.innerHTML = `
-        <label class="form-label fw-semibold">Choix de réponses <small class="text-muted">(${type === 'qcm' ? 'une seule bonne réponse' : 'plusieurs bonnes réponses possibles'})</small></label>
-        <div id="listeChoix">
-          ${genererChoix(3)}
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="ajouterChoix()">+ Ajouter un choix</button>
-      `;
-    } else if (type === 'vrai_faux') {
-      zoneChoix.innerHTML = `
-        <label class="form-label fw-semibold">Bonne réponse</label>
-        <select class="form-select" id="bonneReponseVraiFaux">
-          <option value="Vrai">Vrai</option>
-          <option value="Faux">Faux</option>
-        </select>
-      `;
-    } else if (type === 'completion') {
-      zoneChoix.innerHTML = `
-        <label class="form-label fw-semibold">Réponse attendue <small class="text-muted">(le ou les mots à placer dans le blanc)</small></label>
-        <input type="text" class="form-control" id="bonneReponseTexte" placeholder="Ex: photosynthèse" />
-      `;
-    } else if (type === 'calcul') {
-      zoneChoix.innerHTML = `
-        <label class="form-label fw-semibold">Résultat exact attendu</label>
-        <input type="text" class="form-control" id="bonneReponseTexte" placeholder="Ex: 42" />
-      `;
-    } else {
-      // ouverte_courte, ouverte_longue, etude_de_cas
-      zoneChoix.innerHTML = `<div class="alert alert-info py-2">✏️ Correction manuelle par le jury — pas de choix à définir.</div>`;
-    }
-  }
-
-  function genererChoix(n) {
-    let html = '';
-    for (let i = 0; i < n; i++) {
-      html += `
-        <div class="choix-item">
-          <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
-          <input type="text" class="form-control form-control-sm texte-choix" placeholder="Choix ${i + 1}" />
-          <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
-        </div>`;
-    }
-    return html;
-  }
-
-  function ajouterChoix() {
-    document.getElementById('listeChoix').insertAdjacentHTML('beforeend', `
-      <div class="choix-item">
-        <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
-        <input type="text" class="form-control form-control-sm texte-choix" placeholder="Nouveau choix" />
-        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
-      </div>
-    `);
-  }
-
-  // Construire les choix selon le type
-  function construireChoix(type) {
-    if (['qcm', 'qrm'].includes(type)) {
-      const checkboxes = document.querySelectorAll('.est-correcte');
-      const textes = document.querySelectorAll('.texte-choix');
-      let choix = [];
-      textes.forEach((t, i) => {
-        if (t.value.trim()) {
-          choix.push({ texte: t.value.trim(), est_correcte: checkboxes[i].checked });
-        }
-      });
-      return choix;
-    } else if (type === 'vrai_faux') {
-      const bonne = document.getElementById('bonneReponseVraiFaux').value;
-      return [
-        { texte: 'Vrai', est_correcte: bonne === 'Vrai' },
-        { texte: 'Faux', est_correcte: bonne === 'Faux' }
-      ];
-    } else if (['completion', 'calcul'].includes(type)) {
-      const bonne = document.getElementById('bonneReponseTexte').value.trim();
-      return [{ texte: bonne, est_correcte: true }];
-    }
-    return [];
-  }
-
-  // Ajouter une question
-async function ajouterQuestion() {
-  const type = document.getElementById('typeQuestion').value;
-  const enonce = document.getElementById('enonce').value.trim();
-  const points = document.getElementById('points').value;
-  const choix = construireChoix(type);
-
-  if (!enonce) { showAlert("L'énoncé est obligatoire."); return; }
-
-  // Construire FormData (supporte texte + fichier)
-  const formData = new FormData();
-  formData.append('epreuve_id', epreuveId);
-  formData.append('enonce', enonce);
-  formData.append('type', type);
-  formData.append('points', points);
-  formData.append('ordre', ordreAuto);
-  formData.append('choix', JSON.stringify(choix));
-
-  // Si étude de cas → joindre le fichier
-  if (type === 'etude_de_cas') {
-    const fichier = document.getElementById('mediaFichier').files[0];
-    if (fichier) formData.append('media', fichier);
-  }
-
-  const res = await fetch(`${API}/questions`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` }, // ⚠️ pas de Content-Type ici !
-    body: formData
-  });
-
-  const data = await res.json();
-
-  if (res.ok) {
-    afficherQuestionDansApercu(type, enonce, choix, points, ordreAuto);
-    ordreAuto++;
-    document.getElementById('ordre').value = ordreAuto;
-    document.getElementById('enonce').value = '';
-    const mediaFichier = document.getElementById('mediaFichier');
-    if (mediaFichier) mediaFichier.value = '';
-    showAlert('Question ajoutée ✅', 'success');
-  } else {
-    showAlert(data.message || 'Erreur.');
-  }
-}
-
-  // Afficher la question dans l'aperçu
-  function afficherQuestionDansApercu(type, enonce, choix, points, ordre) {
-    const labels = {
-      qcm: 'QCM', qrm: 'QRM', vrai_faux: 'Vrai/Faux',
-      completion: 'Complétion', calcul: 'Calcul',
-      ouverte_courte: 'Ouverte courte', ouverte_longue: 'Ouverte longue',
-      etude_de_cas: 'Étude de cas'
-    };
-
-    let choixHtml = '';
-    choix.forEach(c => {
-      choixHtml += `<div class="choix-item">
-        <span style="color:${c.est_correcte ? 'green' : '#999'}">
-          ${c.est_correcte ? '✅' : '○'} ${c.texte}
-        </span>
-      </div>`;
-    });
-
-    const container = document.getElementById('listeQuestions');
-    if (container.querySelector('p')) container.innerHTML = '';
-
-    container.insertAdjacentHTML('beforeend', `
-      <div class="question-card">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <span class="fw-semibold">Q${ordre}. ${enonce}</span>
-          <div class="d-flex gap-2">
-            <span class="badge-type">${labels[type]}</span>
-            <span class="badge bg-secondary">${points} pt${points > 1 ? 's' : ''}</span>
-          </div>
-        </div>
-        ${choixHtml || '<small class="text-muted">Correction manuelle</small>'}
-      </div>
-    `);
-
-    document.getElementById('compteurQuestions').textContent = ordreAuto;
-  }
-
-  //Envoye du sujet à l'Admin
-  async function envoyerSujetAdmin() {
-  if (!epreuveId) return;
-
-  const res = await fetch(`${API}/epreuves`, {
-  method: 'PUT',
-  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-  body: JSON.stringify({ id: epreuveId, statut_validation: 'en_attente' })
-});
-
-  const data = await res.json();
-  if (res.ok) {
-    showAlert('Sujet envoyé à l\'admin ✅ En attente de validation.', 'success');
-    document.getElementById('btnEnvoiZone').style.display = 'none';
-  } else {
-    showAlert(data.message || 'Erreur envoi.');
-  }
-}
-  
+  chargerConcoursJury();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

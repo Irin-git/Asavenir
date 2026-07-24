@@ -8,14 +8,14 @@ $data = json_decode(file_get_contents("php://input"), true);
 $user = verifierToken();
 
 if ($method === 'POST') {
-    if (!in_array($user->role, ['admin', 'jury'])) {
+    if ($user->role !== 'admin') {
         http_response_code(403);
         echo json_encode(["message" => "Accès refusé"]);
         exit();
     }
     $conn = (new Database())->connect();
-    $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut) VALUES (?, ?, ?, ?, ?, 'planifiée')");
-    $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
+    $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut, statut_validation) VALUES (?, ?, ?, ?, ?, 'planifiée', 'approuvé')");
+$stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
     echo json_encode(["message" => "Épreuve créée ✅", "id" => $conn->lastInsertId()]);
 
 } elseif ($method === 'GET') {
@@ -47,12 +47,17 @@ if ($method === 'POST') {
 }
 
     if ($en_attente) {
-        $stmt = $conn->prepare("SELECT e.*, c.titre AS concours_titre FROM epreuves e JOIN concours c ON c.id = e.concours_id WHERE e.statut_validation = 'en_attente' ORDER BY e.id DESC");
+        $stmt = $conn->prepare("
+            SELECT e.*, c.titre AS concours_titre,
+                   (e.date_epreuve > NOW()) AS modifiable
+            FROM epreuves e
+            JOIN concours c ON c.id = e.concours_id
+            ORDER BY e.id DESC
+        ");
         $stmt->execute();
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit();
     }
-
     if (!$concours_id) {
         http_response_code(400);
         echo json_encode(["message" => "concours_id manquant"]);

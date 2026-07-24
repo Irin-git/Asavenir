@@ -34,15 +34,16 @@ elseif ($method === 'POST') {
     $conn = $db->connect();
     
     $stmt = $conn->prepare("INSERT INTO concours 
-        (titre, description, date_debut, date_fin, statut) 
-        VALUES (?, ?, ?, ?, ?)");
+        (titre, description, date_debut, date_fin, statut, nb_places) 
+        VALUES (?, ?, ?, ?, ?, ?)");
     
     $stmt->execute([
         $data['titre'],
         $data['description'],
         $data['date_debut'],
         $data['date_fin'],
-        $data['statut'] ?? 'ouvert'
+        $data['statut'] ?? 'ouvert',
+        $data['nb_places'] ?? null
     ]);
     
     echo json_encode(["message" => "Concours créé ✅"]);
