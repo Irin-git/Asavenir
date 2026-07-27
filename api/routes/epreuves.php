@@ -13,9 +13,10 @@ if ($method === 'POST') {
         echo json_encode(["message" => "Accès refusé"]);
         exit();
     }
+
     $conn = (new Database())->connect();
     $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut, statut_validation) VALUES (?, ?, ?, ?, ?, 'planifiée', 'approuvé')");
-$stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
+    $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
     echo json_encode(["message" => "Épreuve créée ✅", "id" => $conn->lastInsertId()]);
 
 } elseif ($method === 'GET') {
@@ -24,40 +25,53 @@ $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['dure
     $en_attente = $_GET['en_attente'] ?? null;
     $mes_epreuves = $_GET['mes_epreuves'] ?? null;
 
+    // Liste des épreuves auxquelles LE candidat connecté peut accéder (via ses candidatures validées)
     if ($mes_epreuves) {
-    $sql = "SELECT e.*, c.titre AS concours_titre, cd.id AS candidature_id, (e.date_epreuve <= NOW()) AS est_accessible,
-        EXISTS (SELECT 1 FROM reponses r WHERE r.candidature_id = cd.id) AS deja_soumise,
-        EXISTS (SELECT 1 FROM exclusions ex WHERE ex.candidature_id = cd.id AND ex.epreuve_id = e.id) AS est_exclu
-        FROM epreuves e
-        JOIN concours c ON c.id = e.concours_id
-        JOIN candidatures cd ON cd.concours_id = e.concours_id
-        WHERE cd.user_id = ?
-        AND cd.statut = 'validé'
-        AND e.statut_validation = 'approuvé'
-        ORDER BY e.date_epreuve";
+        $sql = "SELECT e.*, c.titre AS concours_titre, cd.id AS candidature_id, (e.date_epreuve <= NOW()) AS est_accessible,
+            EXISTS (SELECT 1 FROM reponses r WHERE r.candidature_id = cd.id) AS deja_soumise,
+            EXISTS (SELECT 1 FROM exclusions ex WHERE ex.candidature_id = cd.id AND ex.epreuve_id = e.id) AS est_exclu
+            FROM epreuves e
+            JOIN concours c ON c.id = e.concours_id
+            JOIN candidatures cd ON cd.concours_id = e.concours_id
+            WHERE cd.user_id = ?
+            AND cd.statut = 'validé'
+            AND e.statut_validation = 'approuvé'
+            ORDER BY e.date_epreuve";
 
-    // Nettoyage : remplace les espaces invisibles par de vrais espaces
-    $sql = str_replace("\xC2\xA0", " ", $sql);
-    $sql = preg_replace('/\s+/', ' ', $sql);
+        // Nettoyage : remplace les espaces invisibles par de vrais espaces
+        $sql = str_replace("\xC2\xA0", " ", $sql);
+        $sql = preg_replace('/\s+/', ' ', $sql);
 
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([$user->id]);
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-    exit();
-}
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$user->id]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit();
+    }
 
+    // Liste des épreuves EN ATTENTE de validation (réservé admin/jury, avant qu'elles soient corrigeables)
     if ($en_attente) {
+        // Réservé à l'admin et au jury : un candidat n'a pas à voir les épreuves pas encore validées
+        if (!in_array($user->role, ['admin', 'jury'])) {
+            http_response_code(403);
+            echo json_encode(["message" => "Accès refusé"]);
+            exit();
+        }
+
+        // Correction : la requête ne filtrait pas sur statut_validation et renvoyait TOUTES les épreuves,
+        // pas seulement celles en attente. Ajout du WHERE manquant.
         $stmt = $conn->prepare("
             SELECT e.*, c.titre AS concours_titre,
                    (e.date_epreuve > NOW()) AS modifiable
             FROM epreuves e
             JOIN concours c ON c.id = e.concours_id
+            WHERE e.statut_validation = 'en_attente'
             ORDER BY e.id DESC
         ");
         $stmt->execute();
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit();
     }
+
     if (!$concours_id) {
         http_response_code(400);
         echo json_encode(["message" => "concours_id manquant"]);

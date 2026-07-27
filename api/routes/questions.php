@@ -17,9 +17,16 @@ if ($method === 'POST') {
         exit();
     }
 
+    // Vérification des champs obligatoires (évite un plantage PHP brut si un champ manque)
+    if (empty($_POST['epreuve_id']) || empty($_POST['enonce']) || empty($_POST['type']) || !isset($_POST['points']) || !isset($_POST['ordre'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "epreuve_id, enonce, type, points et ordre sont obligatoires"]);
+        exit();
+    }
+
     $conn = (new Database())->connect();
 
-    // Récupérer les données (FormData au lieu de JSON)
+    // Récupérer les données (FormData au lieu de JSON, car il peut y avoir un fichier joint)
     $epreuve_id = $_POST['epreuve_id'];
     $enonce     = $_POST['enonce'];
     $type       = $_POST['type'];
@@ -30,17 +37,26 @@ if ($method === 'POST') {
 
     // Si un fichier est joint (étude de cas)
     if (isset($_FILES['media']) && $_FILES['media']['error'] === 0) {
-        $fichier    = $_FILES['media'];
-        $ext        = strtolower(pathinfo($fichier['name'], PATHINFO_EXTENSION));
-        $autorise   = ['pdf', 'jpg', 'jpeg', 'png'];
+        $fichier = $_FILES['media'];
 
-        if (!in_array($ext, $autorise)) {
+        // Correction sécurité : comme pour documents.php, on ne fait pas confiance au nom
+        // de fichier envoyé. On vérifie le VRAI type MIME et on choisit l'extension nous-même.
+        $mimeAutorises = [
+            'application/pdf' => 'pdf',
+            'image/jpeg'       => 'jpg',
+            'image/png'        => 'png',
+        ];
+
+        $mimeType = mime_content_type($fichier['tmp_name']);
+
+        if (!isset($mimeAutorises[$mimeType])) {
             http_response_code(400);
             echo json_encode(["message" => "Format non autorisé (PDF, JPG, PNG uniquement)"]);
             exit();
         }
 
-        $nomFichier = uniqid('media_') . '.' . $ext;
+        $extension = $mimeAutorises[$mimeType];
+        $nomFichier = uniqid('media_') . '.' . $extension;
         $destination = __DIR__ . '/../../uploads/medias/' . $nomFichier;
 
         if (!move_uploaded_file($fichier['tmp_name'], $destination)) {
@@ -60,7 +76,7 @@ if ($method === 'POST') {
     $stmt->execute([$epreuve_id, $enonce, $media, $type, $points, $ordre]);
     $question_id = $conn->lastInsertId();
 
-    // Insérer les choix si présents
+    // Insérer les choix si présents (cas QCM/QRM)
     if (!empty($choix)) {
         $stmtChoix = $conn->prepare("
             INSERT INTO choix_reponses (question_id, texte, est_correcte)
@@ -87,6 +103,7 @@ elseif ($method === 'GET') {
         exit();
     }
 
+    // JSON_ARRAYAGG regroupe tous les choix d'une question dans un seul tableau JSON
     $stmt = $conn->prepare("
         SELECT q.*, 
                JSON_ARRAYAGG(
@@ -101,7 +118,8 @@ elseif ($method === 'GET') {
     $stmt->execute([$epreuve_id]);
     $questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Sécurité : masquer les bonnes réponses si c'est un candidat
+    // Sécurité : on masque les bonnes réponses si c'est un candidat qui consulte
+    // (le jury et l'admin, eux, ont besoin de voir les bonnes réponses)
     if ($user->role === 'candidat') {
         foreach ($questions as &$q) {
             $choix = json_decode($q['choix'], true);
@@ -154,18 +172,18 @@ elseif ($method === 'DELETE') {
         exit();
     }
 
-    // Verrou temporel : interdiction si l'épreuve a déjà commencé
+    // Verrou temporel : interdiction si l'épreuve a déjà commencé (protège l'intégrité de l'examen en cours)
     if (strtotime($epreuve['date_epreuve']) <= time()) {
         http_response_code(403);
         echo json_encode(["message" => "Modification impossible : l'épreuve a déjà débuté ou est terminée"]);
         exit();
     }
 
-    // Suppression (choix_reponses puis question)
+    // Suppression (choix_reponses puis question, dans cet ordre à cause de la clé étrangère)
     $conn->prepare("DELETE FROM choix_reponses WHERE question_id = ?")->execute([$question_id]);
     $conn->prepare("DELETE FROM questions WHERE id = ?")->execute([$question_id]);
 
-    // Réordonnancement des questions restantes
+    // Réordonnancement des questions restantes (pour ne pas laisser de trou dans la numérotation)
     $stmt = $conn->prepare("SELECT id FROM questions WHERE epreuve_id = ? ORDER BY ordre");
     $stmt->execute([$epreuve['epreuve_id']]);
     $restantes = $stmt->fetchAll(PDO::FETCH_COLUMN);

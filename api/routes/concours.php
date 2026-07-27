@@ -29,6 +29,13 @@ elseif ($method === 'POST') {
         echo json_encode(["message" => "Accès refusé, admin seulement"]);
         exit();
     }
+
+    // Vérification des champs obligatoires avant d'aller plus loin
+    if (empty($data['titre']) || empty($data['description']) || empty($data['date_debut']) || empty($data['date_fin'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Titre, description, date_debut et date_fin sont obligatoires"]);
+        exit();
+    }
     
     $db = new Database();
     $conn = $db->connect();
@@ -47,4 +54,8 @@ elseif ($method === 'POST') {
     ]);
     
     echo json_encode(["message" => "Concours créé ✅"]);
+
+} else {
+    http_response_code(405);
+    echo json_encode(["message" => "Méthode non autorisée"]);
 }

@@ -45,23 +45,7 @@ if ($method === 'POST') {
     }
 
     // On récupère l'epreuve_id à partir de la première question, pour vérifier l'exclusion
-    $epreuve_id = null;
-    if (count($reponses) > 0 && isset($reponses[0]['question_id'])) {
-        $stmtEpreuve = $conn->prepare("SELECT epreuve_id FROM questions WHERE id = ?");
-        $stmtEpreuve->execute([$reponses[0]['question_id']]);
-        $ligneEpreuve = $stmtEpreuve->fetch(PDO::FETCH_ASSOC);
-        $epreuve_id = $ligneEpreuve ? $ligneEpreuve['epreuve_id'] : null;
-    }
-
-    // Vérifie si cette candidature est exclue de cette épreuve (fraude détectée)
-    $candidatExclu = false;
-    if ($epreuve_id) {
-        $stmtExclu = $conn->prepare("SELECT id FROM exclusions WHERE candidature_id = ? AND epreuve_id = ?");
-        $stmtExclu->execute([$candidature_id, $epreuve_id]);
-        $candidatExclu = (bool) $stmtExclu->fetch();
-    }
-
-    // On récupère l'epreuve_id à partir de la première question, pour vérifier l'exclusion
+    // (Correction : ce bloc était dupliqué deux fois de suite dans l'ancienne version -> retiré le doublon)
     $epreuve_id = null;
     if (count($reponses) > 0 && isset($reponses[0]['question_id'])) {
         $stmtEpreuve = $conn->prepare("SELECT epreuve_id FROM questions WHERE id = ?");
@@ -105,6 +89,7 @@ if ($method === 'POST') {
                 $choix = $stmtChoix->fetch(PDO::FETCH_ASSOC);
                 $est_correcte = $choix ? (int)$choix['est_correcte'] : 0;
             }
+            // Sinon (question ouverte, pas exclu) : $est_correcte reste null, en attente de correction manuelle par le jury
 
             $stmtInsert->execute([$candidature_id, $question_id, $choix_id, $texte_reponse, $est_correcte]);
         }

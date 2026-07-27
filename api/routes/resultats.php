@@ -3,7 +3,8 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/auth.php';
 
-// ⚠️ Fonction placée ici, au niveau racine du script (jamais imbriquée dans un autre bloc)
+// ⚠️ Fonction placée ici, au niveau racine du script (jamais imbriquée dans un autre bloc),
+// pour pouvoir être appelée depuis n'importe où plus bas dans le fichier
 function recalculerClassement($conn, $concours_id) {
     // Récupère le nombre de places disponibles pour ce concours
     $nbStmt = $conn->prepare("SELECT nb_places FROM concours WHERE id = ?");
@@ -21,9 +22,11 @@ function recalculerClassement($conn, $concours_id) {
     $listStmt->execute([$concours_id]);
     $liste = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // On attribue un rang à chaque candidat et on déduit sa mention finale
     $rang = 1;
     foreach ($liste as $ligne) {
-        // Ordre de priorité fixé par le cahier des charges
+        // Ordre de priorité fixé par le cahier des charges :
+        // être dans le nombre de places disponibles prime sur la simple moyenne
         if ($nb_places !== null && $rang <= $nb_places) {
             $mention = 'Admis';
         } elseif ($ligne['note_totale'] >= 10) {
@@ -41,6 +44,7 @@ function recalculerClassement($conn, $concours_id) {
 $method = $_SERVER['REQUEST_METHOD'];
 $user = verifierToken();
 
+// ===== GET a_corriger — liste des copies ouvertes à corriger, réservée au jury =====
 if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     if ($user->role !== 'jury') {
@@ -59,6 +63,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     $conn = (new Database())->connect();
 
+    // On ne renvoie JAMAIS le nom du candidat ici -> c'est ce qui garantit l'anonymat de la correction
     $stmt = $conn->prepare("
         SELECT 
             r.id AS reponse_id,
@@ -80,7 +85,8 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     http_response_code(200);
     echo json_encode($reponses);
 
-    } else if ($method === 'GET' && isset($_GET['stats_concours'])) {
+// ===== GET stats_concours — statistiques globales d'un concours, réservé admin =====
+} else if ($method === 'GET' && isset($_GET['stats_concours'])) {
 
     if ($user->role !== 'admin') {
         http_response_code(403);
@@ -128,6 +134,140 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
         "taux_reussite"   => $taux_reussite
     ]);
 
+// ===== GET par_candidat — classement détaillé d'un concours, réservé admin =====
+} else if ($method === 'GET' && isset($_GET['par_candidat'])) {
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès réservé à l'administrateur"]);
+        exit();
+    }
+
+    $concours_id = $_GET['par_candidat'];
+
+    $conn = (new Database())->connect();
+
+    // 1. Liste des candidats notés pour ce concours, avec leur résultat global
+    $candidatsStmt = $conn->prepare("
+        SELECT 
+            c.id AS candidature_id,
+            u.nom,
+            u.prenom,
+            r.note_totale,
+            r.mention,
+            r.rang
+        FROM resultats r
+        INNER JOIN candidatures c ON r.candidature_id = c.id
+        INNER JOIN users u ON c.user_id = u.id
+        WHERE c.concours_id = ?
+        ORDER BY r.rang ASC
+    ");
+    $candidatsStmt->execute([$concours_id]);
+    $candidats = $candidatsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2. Pour chaque candidat, détail des notes par épreuve (avec conversion sur 20)
+    $detailStmt = $conn->prepare("
+        SELECT 
+            e.titre,
+            e.coefficient,
+            SUM(CASE 
+                    WHEN r.points_obtenus IS NOT NULL THEN r.points_obtenus
+                    WHEN r.est_correcte = 1 THEN q.points
+                    ELSE 0
+                END) AS obtenu,
+            SUM(q.points) AS possible
+        FROM reponses r
+        INNER JOIN questions q ON r.question_id = q.id
+        INNER JOIN epreuves e ON q.epreuve_id = e.id
+        WHERE r.candidature_id = ?
+        GROUP BY e.id, e.titre, e.coefficient
+    ");
+
+    foreach ($candidats as &$candidat) {
+        $detailStmt->execute([$candidat['candidature_id']]);
+        $epreuvesDetail = $detailStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($epreuvesDetail as &$ep) {
+            $ep['note_sur_20'] = $ep['possible'] > 0
+                ? round(($ep['obtenu'] / $ep['possible']) * 20, 2)
+                : 0;
+        }
+        unset($ep);
+
+        $candidat['epreuves'] = $epreuvesDetail;
+    }
+    unset($candidat);
+
+    http_response_code(200);
+    echo json_encode($candidats);
+
+// ===== GET detail_candidat — détail complet d'un candidat, réservé admin =====
+} else if ($method === 'GET' && isset($_GET['detail_candidat'])) {
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès réservé à l'administrateur"]);
+        exit();
+    }
+
+    $candidature_id = $_GET['detail_candidat'];
+
+    $conn = (new Database())->connect();
+
+    // Infos du candidat + son résultat global
+    $infoStmt = $conn->prepare("
+        SELECT 
+            u.nom, u.prenom, u.email,
+            co.titre AS titre_concours,
+            r.note_totale, r.mention, r.rang
+        FROM resultats r
+        INNER JOIN candidatures c ON r.candidature_id = c.id
+        INNER JOIN users u ON c.user_id = u.id
+        INNER JOIN concours co ON c.concours_id = co.id
+        WHERE r.candidature_id = ?
+    ");
+    $infoStmt->execute([$candidature_id]);
+    $candidat = $infoStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$candidat) {
+        http_response_code(404);
+        echo json_encode(["message" => "Résultat introuvable"]);
+        exit();
+    }
+
+    // Détail des notes par épreuve, converties sur 20
+    $detailStmt = $conn->prepare("
+        SELECT 
+            e.titre,
+            e.coefficient,
+            SUM(CASE 
+                    WHEN r.points_obtenus IS NOT NULL THEN r.points_obtenus
+                    WHEN r.est_correcte = 1 THEN q.points
+                    ELSE 0
+                END) AS obtenu,
+            SUM(q.points) AS possible
+        FROM reponses r
+        INNER JOIN questions q ON r.question_id = q.id
+        INNER JOIN epreuves e ON q.epreuve_id = e.id
+        WHERE r.candidature_id = ?
+        GROUP BY e.id, e.titre, e.coefficient
+    ");
+    $detailStmt->execute([$candidature_id]);
+    $epreuves = $detailStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($epreuves as &$ep) {
+        $ep['note_sur_20'] = $ep['possible'] > 0
+            ? round(($ep['obtenu'] / $ep['possible']) * 20, 2)
+            : 0;
+    }
+    unset($ep);
+
+    $candidat['epreuves'] = $epreuves;
+
+    http_response_code(200);
+    echo json_encode($candidat);
+
+// ===== POST — Le jury note une réponse ouverte =====
 } else if ($method === 'POST') {
 
     if ($user->role !== 'jury') {
@@ -149,7 +289,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     $conn = (new Database())->connect();
 
-    // Récupérer le barème max de la question liée à cette réponse
+    // Récupérer le barème max de la question liée à cette réponse, pour valider la note
     $verif = $conn->prepare("
         SELECT q.points AS bareme
         FROM reponses r
@@ -178,9 +318,9 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     ");
     $stmt->execute([$points_obtenus, $user->id, $reponse_id]);
 
-    // ===== NOUVEAU : déclenchement du calcul automatique =====
+    // ===== Déclenchement du calcul automatique du résultat, si la copie est désormais complète =====
 
-    // 1. Identifier la candidature et le concours concernés
+    // 1. Identifier la candidature et le concours concernés par cette réponse
     $candInfo = $conn->prepare("
         SELECT r.candidature_id, c.concours_id
         FROM reponses r
@@ -193,6 +333,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     $concours_id = $candData['concours_id'];
 
     // 2. Vérifier si TOUTES les réponses de cette candidature sont désormais notées
+    // (soit par correction manuelle points_obtenus, soit automatiquement pour un QCM via est_correcte)
     $check = $conn->prepare("
         SELECT COUNT(*) 
         FROM reponses 
@@ -249,11 +390,9 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
         ");
         $upsert->execute([$candidature_id, $note_totale]);
 
-        // 5. Recalculer le classement de TOUT le concours (impact global)
+        // 5. Recalculer le classement de TOUT le concours (impact global, car un nouveau résultat peut changer les rangs)
         recalculerClassement($conn, $concours_id);
     }
-
-    // ===== FIN NOUVEAU =====
 
     http_response_code(200);
     echo json_encode(["message" => "Note enregistrée avec succès"]);

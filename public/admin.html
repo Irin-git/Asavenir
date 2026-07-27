@@ -6,20 +6,28 @@
   <title>Admin — Gestion des concours</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
+    /* Look général de l'espace admin */
     body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
     .navbar { background: #1a3a6b; }
+
+    /* Menu latéral */
     .sidebar { background: white; border-radius: 14px; padding: 1.5rem 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
     .sidebar-link { display: block; padding: 10px 14px; border-radius: 8px; color: #374151; text-decoration: none; font-size: 14px; margin-bottom: 4px; }
     .sidebar-link:hover, .sidebar-link.active { background: #eef2ff; color: #1a3a6b; font-weight: 600; }
+
+    /* Cartes stats du dashboard */
     .stat-card { background: white; border-radius: 12px; padding: 1.2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06); text-align: center; }
     .stat-card .num { font-size: 2rem; font-weight: 700; color: #1a3a6b; }
     .stat-card .label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
     .section-title { font-size: 1.1rem; font-weight: 700; color: #1a3a6b; border-left: 4px solid #1a3a6b; padding-left: 10px; margin-bottom: 1rem; }
     .form-card { background: white; border-radius: 14px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
     .btn-admin { background: #1a3a6b; color: white; border: none; border-radius: 8px; padding: 10px 24px; }
     .btn-admin:hover { background: #142f58; color: white; }
+
     table th { background: #f8fafc; color: #374151; font-size: 13px; font-weight: 600; }
     table td { font-size: 13px; vertical-align: middle; }
+
     .badge-ouvert { background: #d1fae5; color: #065f46; }
     .badge-ferme  { background: #fee2e2; color: #991b1b; }
     #alertAdmin { margin-bottom: 1rem; }
@@ -28,7 +36,7 @@
 </head>
 <body>
 
-  <!-- Navbar -->
+  <!-- Barre du haut, juste le nom de l'admin + déconnexion -->
   <nav class="navbar px-4 py-3 d-flex justify-content-between align-items-center">
     <span class="text-white fw-bold fs-6">🏛️ Concours FP — Admin</span>
     <div class="d-flex gap-3 align-items-center">
@@ -40,7 +48,7 @@
   <div class="container-fluid py-4 px-4">
     <div class="row g-4">
 
-      <!-- Sidebar -->
+      <!-- Menu de navigation entre les sections (tout est en JS, pas de vraies pages) -->
       <div class="col-md-2">
         <div class="sidebar">
           <p class="text-muted" style="font-size:11px; text-transform:uppercase; font-weight:600; padding:0 14px;">Menu</p>
@@ -51,81 +59,89 @@
           <a href="#" class="sidebar-link" onclick="afficherSection('utilisateurs')">👤 Gérer les utilisateurs</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('validation')">📝 Gestions des épreuves</a>
           <a href="#" class="sidebar-link" onclick="afficherSection('creer_sujet')">📝➕ Créer un sujet</a>
+          <a href="#" class="sidebar-link" onclick="afficherSection('resultats')">🏆 Résultats</a>
           <a href="concours.html" class="sidebar-link">👁️ Vue candidat</a>
         </div>
       </div>
 
-      <!-- Contenu principal -->
+      <!-- Toutes les sections sont chargées d'un coup, admin.js gère juste l'affichage/masquage -->
       <div class="col-md-10">
 
-        <!-- Tableau de bord -->
-<div id="section-dashboard">
-  <p class="section-title">Tableau de bord</p>
-  <div class="row g-3 mb-4" id="statsCards">
-    <div class="col-md-3">
-      <div class="stat-card">
-        <div class="num" id="statTotal">—</div>
-        <div class="label">Concours au total</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="stat-card">
-        <div class="num" id="statOuvert">—</div>
-        <div class="label">Concours ouverts</div>
-      </div>
-    </div>
-  </div>
+        <!-- ===== Tableau de bord ===== -->
+        <div id="section-dashboard">
+          <p class="section-title">Tableau de bord</p>
 
-  <div class="form-card mb-4">
-    <p class="fw-semibold mb-3">📋 Sélectionnez un concours pour voir ses statistiques</p>
-    <div id="listeConcoursDashboard">
-      <p class="text-muted text-center py-3">Chargement...</p>
-    </div>
-  </div>
+          <div class="row g-3 mb-4" id="statsCards">
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="num" id="statTotal">—</div>
+                <div class="label">Concours au total</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-card">
+                <div class="num" id="statOuvert">—</div>
+                <div class="label">Concours ouverts</div>
+              </div>
+            </div>
+          </div>
 
-  <div id="zoneStatsConcours" style="display:none;">
-    <div class="form-card">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <p class="fw-semibold mb-0" id="titreStatsConcours">Statistiques</p>
-        <button class="btn btn-sm btn-outline-secondary" onclick="fermerStatsConcours()">✖ Fermer</button>
-      </div>
-      <div class="row g-3 text-center">
-        <div class="col-6 col-md-3">
-          <div class="stat-card"><div class="num" id="statCandidats">—</div><div class="label">Candidats validés</div></div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="stat-card"><div class="num text-success" id="statAdmis">—</div><div class="label">Admis</div></div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="stat-card"><div class="num text-warning" id="statAjourne">—</div><div class="label">Ajournés</div></div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="stat-card"><div class="num text-danger" id="statRejete">—</div><div class="label">Rejetés</div></div>
-        </div>
-      </div>
-      <div class="row mt-4">
-  <div class="col-md-6">
-    <canvas id="chartMentions" style="max-height:280px;"></canvas>
-  </div>
-  <div class="col-md-6 d-flex align-items-center justify-content-center">
-    <div style="width:100%;">
-      <canvas id="chartTaux" style="max-height:280px;"></canvas>
-    </div>
-  </div>
-</div>
-      <p class="text-muted mt-3 mb-0" style="font-size:13px;">
-        Taux de réussite : <strong id="statTauxReussite">—</strong>% 
-        (<span id="statEnAttente">—</span> copie(s) en attente de correction)
-      </p>
-    </div>
-  </div>
-</div>
+          <div class="form-card mb-4">
+            <p class="fw-semibold mb-3">📋 Sélectionnez un concours pour voir ses statistiques</p>
+            <div id="listeConcoursDashboard">
+              <p class="text-muted text-center py-3">Chargement...</p>
+            </div>
+          </div>
 
-        <!-- Créer un concours -->
+          <!-- Ce bloc reste caché tant qu'on n'a pas cliqué sur un concours dans la liste au-dessus -->
+          <div id="zoneStatsConcours" style="display:none;">
+            <div class="form-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="fw-semibold mb-0" id="titreStatsConcours">Statistiques</p>
+                <button class="btn btn-sm btn-outline-secondary" onclick="fermerStatsConcours()">✖ Fermer</button>
+              </div>
+
+              <div class="row g-3 text-center">
+                <div class="col-6 col-md-3">
+                  <div class="stat-card"><div class="num" id="statCandidats">—</div><div class="label">Candidats validés</div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card"><div class="num text-success" id="statAdmis">—</div><div class="label">Admis</div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card"><div class="num text-warning" id="statAjourne">—</div><div class="label">Ajournés</div></div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="stat-card"><div class="num text-danger" id="statRejete">—</div><div class="label">Rejetés</div></div>
+                </div>
+              </div>
+
+              <!-- Les deux graphes Chart.js, détruits/recréés à chaque sélection dans admin.js -->
+              <div class="row mt-4">
+                <div class="col-md-6">
+                  <canvas id="chartMentions" style="max-height:280px;"></canvas>
+                </div>
+                <div class="col-md-6 d-flex align-items-center justify-content-center">
+                  <div style="width:100%;">
+                    <canvas id="chartTaux" style="max-height:280px;"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <p class="text-muted mt-3 mb-0" style="font-size:13px;">
+                Taux de réussite : <strong id="statTauxReussite">—</strong>%
+                (<span id="statEnAttente">—</span> copie(s) en attente de correction)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Créer un concours ===== -->
         <div id="section-creer" style="display:none;">
           <p class="section-title">Créer un nouveau concours</p>
           <div class="form-card" style="max-width: 620px;">
             <div id="alertAdmin"></div>
+
             <div class="mb-3">
               <label class="form-label fw-semibold">Titre du concours</label>
               <input type="text" class="form-control" id="titre" placeholder="Ex: Concours de recrutement — Enseignants 2026" />
@@ -151,7 +167,7 @@
                 <option value="ferme">❌ Fermé</option>
               </select>
             </div>
-            <button class="btn-admin btn" onclick="creerConcours()">Publier le concours</button>
+          
             <div class="mb-4">
               <label class="form-label fw-semibold">Nombre de places disponibles</label>
               <input type="number" class="form-control" id="nbPlaces" min="1" placeholder="Ex: 20" />
@@ -160,7 +176,9 @@
           </div>
         </div>
 
-        <!-- Liste des concours -->
+        <button class="btn-admin btn" onclick="creerConcours()">Publier le concours</button>
+
+        <!-- ===== Liste des concours ===== -->
         <div id="section-liste" style="display:none;">
           <p class="section-title">Tous les concours</p>
           <div class="form-card">
@@ -183,849 +201,200 @@
           </div>
         </div>
 
-      </div>
-    </div>
-  </div>
-
-          <!-- candidatures -->
-<div id="section-candidatures" style="display:none;">
-  <p class="section-title">Candidatures reçues</p>
-  <div class="form-card">
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Candidat</th>
-            <th>Concours</th>
-            <th>Date</th>
-            <th>Statut</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="tableauCandidatures">
-          <tr><td colspan="6" class="text-center text-muted py-4">Chargement...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-        <!-- crée admin -->  
-    <div id="section-utilisateurs" style="display:none;">
-    <p class="section-title">Créer un utilisateur (Admin / Jury)</p>
-    <div class="form-card" style="max-width: 500px;">
-      <div id="alertUser"></div>
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Nom complet</label>
-        <input type="text" class="form-control" id="newNom" />
-      </div>
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Email</label>
-        <input type="email" class="form-control" id="newEmail" />
-      </div>
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Mot de passe</label>
-        <input type="password" class="form-control" id="newPassword" />
-      </div>
-      <div class="mb-4">
-        <label class="form-label fw-semibold">Rôle</label>
-        <select class="form-select" id="newRole">
-          <option value="jury">Jury</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-      <button class="btn-admin btn" onclick="creerUtilisateur()">Créer l'utilisateur</button>
-    </div>
-  </div>
-</div>
-
-<!-- Gestion des épreuves -->
-<div id="section-validation" style="display:none;">
-  <p class="section-title">📋 Gestion des épreuves</p>
-  <div class="form-card">
-    <div id="alertValidation"></div>
-    <div id="listeEpreuvesAttente">
-      <p class="text-muted text-center py-4">Chargement...</p>
-    </div>
-  </div>
-</div>
-
-<!-- Créer un sujet -->
-<div id="section-creer_sujet" style="display:none;">
-  <p class="section-title">➕ Créer un sujet (épreuve + questions)</p>
-  <div id="alertMsgSujet"></div>
-
-  <div class="form-card mb-4">
-    <h6 class="mb-0 fw-bold mb-3">📋 Étape 1 — Créer une épreuve</h6>
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Concours</label>
-        <select class="form-select" id="selectConcoursSujet">
-          <option value="">Chargement...</option>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Titre de l'épreuve</label>
-        <input type="text" class="form-control" id="titreEpreuve" placeholder="Ex: Culture générale" />
-      </div>
-      <div class="col-md-4">
-        <label class="form-label fw-semibold">Type</label>
-        <select class="form-select" id="typeEpreuve">
-          <option value="mixte">Mixte</option>
-          <option value="qcm">QCM uniquement</option>
-          <option value="texte_libre">Texte libre</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label fw-semibold">Durée (minutes)</label>
-        <input type="number" class="form-control" id="dureeEpreuve" placeholder="60" />
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-semibold">Coefficient</label>
-        <input type="number" step="0.5" min="0.5" class="form-control" id="coefficientEpreuve" placeholder="1" value="1" />
-      </div>
-      <div class="col-md-4">
-        <label class="form-label fw-semibold">Date de l'épreuve</label>
-        <input type="datetime-local" class="form-control" id="dateEpreuve" />
-      </div>
-      <div class="col-12">
-        <button class="btn-admin btn" onclick="creerEpreuveSujet()">✅ Créer l'épreuve</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="sectionQuestionsSujet" style="display:none;">
-    <div class="form-card mb-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="mb-0 fw-bold">❓ Étape 2 — Ajouter des questions</h6>
-        <span class="badge bg-light text-dark" id="badgeEpreuveSujet"></span>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Type de question</label>
-        <select class="form-select" id="typeQuestion" onchange="afficherFormulaireQuestionSujet()">
-          <option value="qcm">QCM — Une seule bonne réponse</option>
-          <option value="qrm">QRM — Plusieurs bonnes réponses</option>
-          <option value="vrai_faux">Vrai / Faux</option>
-          <option value="completion">Complétion de texte</option>
-          <option value="calcul">Calcul numérique</option>
-          <option value="ouverte_courte">Question ouverte courte</option>
-          <option value="ouverte_longue">Question ouverte longue</option>
-          <option value="etude_de_cas">Étude de cas</option>
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Énoncé</label>
-        <textarea class="form-control" id="enonce" rows="2" placeholder="Écrivez la question ici..."></textarea>
-      </div>
-
-      <div class="mb-3" id="zoneMedia" style="display:none;">
-        <label class="form-label fw-semibold">Fichier de l'étude de cas (PDF ou image)</label>
-        <input type="file" class="form-control" id="mediaFichier" accept=".pdf,image/*" />
-        <small class="text-muted">Formats acceptés : PDF, JPG, PNG</small>
-      </div>
-
-      <div id="zoneChoix"></div>
-
-      <div class="row g-3 mt-1">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Points</label>
-          <input type="number" class="form-control" id="points" value="1" step="0.5" />
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Ordre</label>
-          <input type="number" class="form-control" id="ordre" value="1" />
-        </div>
-      </div>
-
-      <button class="btn-admin btn mt-3" onclick="ajouterQuestionSujet()">➕ Ajouter la question</button>
-    </div>
-
-    <div class="form-card">
-      <h6 class="mb-0 fw-bold mb-3">👁️ Aperçu des questions <span id="compteurQuestionsSujet" class="badge bg-light text-dark ms-2">0</span></h6>
-      <div id="listeQuestionsSujet">
-        <p class="text-muted text-center">Aucune question ajoutée pour l'instant.</p>
-      </div>
-    </div>
-
-    <div class="text-end mt-3" id="btnEnvoiZoneSujet" style="display:none;">
-      <button class="btn btn-success btn-lg" onclick="envoyerSujetAdminDepuisAdmin()">
-        📨 Envoyer le sujet pour validation
-      </button>
-    </div>
-  </div>
-</div>
-
-  <script>
-    const API = '/concours_fp/api/index.php';
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    let chartMentionsInstance = null;
-    let chartTauxInstance = null;
-
-    // Sécurité
-    if (!token || user.role !== 'admin') {
-      alert('Accès refusé. Vous devez être administrateur.');
-      window.location.href = 'login.html';
-    }
-
-    document.getElementById('nomAdmin').textContent = `👤 ${user.nom || 'Admin'}`;
-
-    function deconnexion() { localStorage.clear(); window.location.href = 'login.html'; }
-
-    function afficherSection(nom) {
-      ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation', 'creer_sujet'].forEach(s => {
-      if (nom === 'validation') chargerEpreuvesAttente();
-        if (nom === 'utilisateurs') {} // rien à charger, c'est juste un formulaire
-        document.getElementById(`section-${s}`).style.display = s === nom ? '' : 'none';
-      });
-      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-      if (nom === 'liste') chargerTableau();
-      if (nom === 'candidatures') chargerCandidatures();
-      if (nom === 'dashboard') chargerStats();
-      if (nom === 'creer_sujet') chargerConcoursSujet();
-    }
-
-    // Stats
-async function chargerStats() {
-  try {
-    const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
-    const concours = await res.json();
-    document.getElementById('statTotal').textContent = concours.length;
-    document.getElementById('statOuvert').textContent = concours.filter(c => c.statut === 'ouvert').length;
-
-    afficherListeConcoursDashboard(concours);
-  } catch {}
-}
-
-function afficherListeConcoursDashboard(concours) {
-  const container = document.getElementById('listeConcoursDashboard');
-
-  if (!concours.length) {
-    container.innerHTML = '<p class="text-muted text-center py-3">Aucun concours créé.</p>';
-    return;
-  }
-
-  container.innerHTML = concours.map(c => `
-    <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2" style="cursor:pointer;" onclick="voirStatsConcours(${c.id}, '${c.titre.replace(/'/g, "\\'")}')">
-      <div>
-        <strong>${c.titre}</strong>
-        <span class="badge bg-light text-dark ms-2" style="font-size:11px;">${c.statut}</span>
-      </div>
-      <span class="text-primary">Voir les stats →</span>
-    </div>
-  `).join('');
-}
-
-async function voirStatsConcours(id, titre) {
-  const res = await fetch(`${API}/resultats?stats_concours=${id}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const s = await res.json();
-
-  if (!res.ok) {
-    alert(s.message || "Erreur lors du chargement des statistiques.");
-    return;
-  }
-
-  document.getElementById('titreStatsConcours').textContent = `📊 ${titre}`;
-  document.getElementById('statCandidats').textContent = s.total_candidats;
-  document.getElementById('statAdmis').textContent = s.admis;
-  document.getElementById('statAjourne').textContent = s.ajourne;
-  document.getElementById('statRejete').textContent = s.rejete;
-  document.getElementById('statTauxReussite').textContent = s.taux_reussite;
-  document.getElementById('statEnAttente').textContent = s.en_attente;
-
-
-  // Détruire les anciens graphiques avant d'en recréer (évite les doublons)
-  if (chartMentionsInstance) chartMentionsInstance.destroy();
-  if (chartTauxInstance) chartTauxInstance.destroy();
-
-  chartMentionsInstance = new Chart(document.getElementById('chartMentions'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Admis', 'Ajournés', 'Rejetés'],
-      datasets: [{
-        data: [s.admis, s.ajourne, s.rejete],
-        backgroundColor: ['#198754', '#ffc107', '#dc3545']
-      }]
-    },
-    options: {
-      plugins: { legend: { position: 'bottom' } },
-      maintainAspectRatio: false
-    }
-  });
-
-  chartTauxInstance = new Chart(document.getElementById('chartTaux'), {
-    type: 'bar',
-    data: {
-      labels: ['Taux de réussite (%)'],
-      datasets: [{
-        label: 'Taux de réussite',
-        data: [s.taux_reussite],
-        backgroundColor: '#1a3a6b'
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      scales: { x: { min: 0, max: 100 } },
-      plugins: { legend: { display: false } },
-      maintainAspectRatio: false
-    }
-  });
-  document.getElementById('zoneStatsConcours').style.display = '';
-  document.getElementById('zoneStatsConcours').scrollIntoView({ behavior: 'smooth' });
-}
-
-function fermerStatsConcours() {
-  document.getElementById('zoneStatsConcours').style.display = 'none';
-}
-
-    // Tableau des concours
-    async function chargerTableau() {
-      try {
-        const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const concours = await res.json();
-
-        if (!concours.length) {
-          document.getElementById('tableauConcours').innerHTML =
-            '<tr><td colspan="5" class="text-center text-muted py-4">Aucun concours créé.</td></tr>';
-          return;
-        }
-
-        document.getElementById('tableauConcours').innerHTML = concours.map(c => `
-          <tr>
-            <td>${c.id}</td>
-            <td><strong>${c.titre}</strong></td>
-            <td>${new Date(c.date_debut).toLocaleDateString('fr-FR')}</td>
-            <td>${new Date(c.date_fin).toLocaleDateString('fr-FR')}</td>
-            <td>
-              <span class="badge ${c.statut === 'ouvert' ? 'badge-ouvert' : 'badge-ferme'} px-2 py-1 rounded-pill" style="font-size:11px;">
-                ${c.statut === 'ouvert' ? '✅ Ouvert' : '❌ Fermé'}
-              </span>
-            </td>
-          </tr>
-        `).join('');
-      } catch {
-        document.getElementById('tableauConcours').innerHTML =
-          '<tr><td colspan="5" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
-      }
-    }
-
-    // Créer un concours
-    async function creerConcours() {
-      const titre      = document.getElementById('titre').value.trim();
-      const description = document.getElementById('description').value.trim();
-      const dateDebut  = document.getElementById('dateDebut').value;
-      const dateFin    = document.getElementById('dateFin').value;
-      const statut     = document.getElementById('statut').value;
-      const nbPlaces   = document.getElementById('nbPlaces').value;
-
-      if (!titre || !dateDebut || !dateFin) {
-        document.getElementById('alertAdmin').innerHTML =
-          '<div class="alert alert-warning">Remplissez au moins le titre et les dates.</div>';
-        return;
-      }
-
-      try {
-        const res = await fetch(`${API}/concours`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ titre, description, date_debut: dateDebut, date_fin: dateFin, statut, nb_places: nbPlaces || null })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          document.getElementById('alertAdmin').innerHTML =
-            '<div class="alert alert-success">✅ Concours créé avec succès !</div>';
-          ['titre','description','dateDebut','dateFin','nbPlaces'].forEach(id => document.getElementById(id).value = '');
-          chargerStats();
-        } else {
-          document.getElementById('alertAdmin').innerHTML =
-            `<div class="alert alert-danger">${data.message}</div>`;
-        }
-      } catch {
-        document.getElementById('alertAdmin').innerHTML =
-          '<div class="alert alert-danger">Erreur réseau.</div>';
-      }
-    }
-
-    //Crée un admin
-async function creerUtilisateur() {
-  const nom = document.getElementById('newNom').value.trim();
-  const email = document.getElementById('newEmail').value.trim();
-  const password = document.getElementById('newPassword').value;
-  const role = document.getElementById('newRole').value;
-
-  if (!nom || !email || !password) {
-    document.getElementById('alertUser').innerHTML =
-      '<div class="alert alert-warning">Remplissez tous les champs.</div>';
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API}/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'create_user', nom, email, password, role })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      document.getElementById('alertUser').innerHTML =
-        '<div class="alert alert-success">✅ Utilisateur créé !</div>';
-      ['newNom','newEmail','newPassword'].forEach(id => document.getElementById(id).value = '');
-    } else {
-      document.getElementById('alertUser').innerHTML =
-        `<div class="alert alert-danger">${data.message}</div>`;
-    }
-  } catch {
-    document.getElementById('alertUser').innerHTML =
-      '<div class="alert alert-danger">Erreur réseau.</div>';
-  }
-}
-
-async function chargerCandidatures() {
-  try {
-    const res = await fetch(`${API}/candidatures?all=1`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (!data.length) {
-      document.getElementById('tableauCandidatures').innerHTML =
-        '<tr><td colspan="6" class="text-center text-muted py-4">Aucune candidature reçue.</td></tr>';
-      return;
-    }
-
-    document.getElementById('tableauCandidatures').innerHTML = data.map(c => `
-  <tr>
-    <td>${c.id}</td>
-    <td>${c.candidat_nom}</td>
-    <td>${c.concours_titre}</td>
-    <td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
-    <td>${c.statut}</td>
-    <td>
-      <a href="dossier.html?id=${c.id}&nom=${encodeURIComponent(c.candidat_nom)}" 
-         target="_blank" class="btn btn-sm btn-outline-primary">👁️ Voir dossier</a>
-      <button class="btn btn-sm btn-success" onclick="validerCandidature(${c.id})">✅ Valider</button>
-      <button class="btn btn-sm btn-danger" onclick="refuserCandidature(${c.id})">❌ Refuser</button>
-    </td>
-  </tr>
-`).join('');
-  } catch {
-    document.getElementById('tableauCandidatures').innerHTML =
-      '<tr><td colspan="6" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
-  }
-}
-
-async function validerCandidature(id) {
-  await changerStatutCandidature(id, 'validé');
-}
-
-async function refuserCandidature(id) {
-  await changerStatutCandidature(id, 'rejeté');
-}
-
-async function changerStatutCandidature(id, statut) {
-  try {
-    const res = await fetch(`${API}/candidatures`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ id, statut })
-    });
-
-    if (res.ok) {
-      chargerCandidatures(); // recharge le tableau pour voir le changement
-    } else {
-      alert('Erreur lors de la mise à jour du statut');
-    }
-  } catch {
-    alert('Erreur réseau');
-  }
-}
-
-// Charger les épreuves en attente de validation
-async function chargerEpreuvesAttente() {
-  const res = await fetch(`${API}/epreuves?en_attente=1`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const epreuves = await res.json();
-  const container = document.getElementById('listeEpreuvesAttente');
-
-  if (!epreuves.length) {
-    container.innerHTML = '<p class="text-muted text-center py-4">Aucune épreuve créée.</p>';
-    return;
-  }
-
-  container.innerHTML = epreuves.map(e => `
-    <div class="border rounded p-3 mb-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div>
-          <strong>${e.titre}</strong>
-          <div class="text-muted" style="font-size:13px;">
-            Concours : ${e.concours_titre} • Type : ${e.type} • Durée : ${e.duree} min
+        <!-- ===== Candidatures ===== -->
+        <div id="section-candidatures" style="display:none;">
+          <p class="section-title">Candidatures reçues</p>
+          <div class="form-card">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Candidat</th>
+                    <th>Concours</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tableauCandidatures">
+                  <tr><td colspan="6" class="text-center text-muted py-4">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div class="d-flex gap-2">
-          <a href="sujet.html?id=${e.id}" target="_blank" class="btn btn-outline-primary btn-sm">👁️ Voir le sujet</a>
-          ${e.modifiable == 1
-            ? `<button class="btn btn-warning btn-sm" onclick="ouvrirModificationEpreuve(${e.id}, '${e.titre.replace(/'/g, "\\'")}')">✏️ Modifier</button>`
-            : `<button class="btn btn-secondary btn-sm" disabled title="Épreuve déjà débutée">🔒 Verrouillée</button>`
-          }
+
+        <!-- ===== Créer un utilisateur (admin/jury) ===== -->
+        <div id="section-utilisateurs" style="display:none;">
+          <p class="section-title">Créer un utilisateur (Admin / Jury)</p>
+          <div class="form-card" style="max-width: 500px;">
+            <div id="alertUser"></div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Nom complet</label>
+              <input type="text" class="form-control" id="newNom" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Email</label>
+              <input type="email" class="form-control" id="newEmail" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Mot de passe</label>
+              <input type="password" class="form-control" id="newPassword" />
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Rôle</label>
+              <select class="form-select" id="newRole">
+                <option value="jury">Jury</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <button class="btn-admin btn" onclick="creerUtilisateur()">Créer l'utilisateur</button>
+          </div>
         </div>
+
+        <!-- ===== Gestion des épreuves ===== -->
+        <div id="section-validation" style="display:none;">
+          <p class="section-title">📋 Gestion des épreuves</p>
+          <div class="form-card">
+            <div id="alertValidation"></div>
+            <div id="listeEpreuvesAttente">
+              <p class="text-muted text-center py-4">Chargement...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Résultats ===== -->
+        <div id="section-resultats" style="display:none;">
+          <p class="section-title">🏆 Résultats des concours</p>
+
+          <div class="form-card mb-4">
+            <label class="form-label fw-semibold">Sélectionnez un concours</label>
+            <select class="form-select" id="selectConcoursResultats" onchange="chargerResultatsConcours()">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+
+          <div id="accordeonResultats">
+            <p class="text-muted text-center py-4">Sélectionnez un concours pour afficher les résultats.</p>
+          </div>
+        </div>
+
+        <!-- ===== Créer un sujet (épreuve + questions) ===== -->
+        <div id="section-creer_sujet" style="display:none;">
+          <p class="section-title">➕ Créer un sujet (épreuve + questions)</p>
+          <div id="alertMsgSujet"></div>
+
+          <!-- Étape 1 : l'épreuve elle-même -->
+          <div class="form-card mb-4">
+            <h6 class="mb-0 fw-bold mb-3">📋 Étape 1 — Créer une épreuve</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Concours</label>
+                <select class="form-select" id="selectConcoursSujet">
+                  <option value="">Chargement...</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Titre de l'épreuve</label>
+                <input type="text" class="form-control" id="titreEpreuve" placeholder="Ex: Culture générale" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Type</label>
+                <select class="form-select" id="typeEpreuve">
+                  <option value="mixte">Mixte</option>
+                  <option value="qcm">QCM uniquement</option>
+                  <option value="texte_libre">Texte libre</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Durée (minutes)</label>
+                <input type="number" class="form-control" id="dureeEpreuve" placeholder="60" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Coefficient</label>
+                <input type="number" step="0.5" min="0.5" class="form-control" id="coefficientEpreuve" placeholder="1" value="1" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Date de l'épreuve</label>
+                <input type="datetime-local" class="form-control" id="dateEpreuve" />
+              </div>
+              <div class="col-12">
+                <button class="btn-admin btn" onclick="creerEpreuveSujet()">✅ Créer l'épreuve</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Étape 2 : reste cachée tant que l'épreuve n'existe pas encore -->
+          <div id="sectionQuestionsSujet" style="display:none;">
+            <div class="form-card mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 fw-bold">❓ Étape 2 — Ajouter des questions</h6>
+                <span class="badge bg-light text-dark" id="badgeEpreuveSujet"></span>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Type de question</label>
+                <select class="form-select" id="typeQuestion" onchange="afficherFormulaireQuestionSujet()">
+                  <option value="qcm">QCM — Une seule bonne réponse</option>
+                  <option value="qrm">QRM — Plusieurs bonnes réponses</option>
+                  <option value="vrai_faux">Vrai / Faux</option>
+                  <option value="completion">Complétion de texte</option>
+                  <option value="calcul">Calcul numérique</option>
+                  <option value="ouverte_courte">Question ouverte courte</option>
+                  <option value="ouverte_longue">Question ouverte longue</option>
+                  <option value="etude_de_cas">Étude de cas</option>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Énoncé</label>
+                <textarea class="form-control" id="enonce" rows="2" placeholder="Écrivez la question ici..."></textarea>
+              </div>
+
+              <!-- Uniquement pour le type "étude de cas", géré en JS -->
+              <div class="mb-3" id="zoneMedia" style="display:none;">
+                <label class="form-label fw-semibold">Fichier de l'étude de cas (PDF ou image)</label>
+                <input type="file" class="form-control" id="mediaFichier" accept=".pdf,image/*" />
+                <small class="text-muted">Formats acceptés : PDF, JPG, PNG</small>
+              </div>
+
+              <!-- Rempli dynamiquement selon le type de question choisi -->
+              <div id="zoneChoix"></div>
+
+              <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Points</label>
+                  <input type="number" class="form-control" id="points" value="1" step="0.5" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ordre</label>
+                  <input type="number" class="form-control" id="ordre" value="1" />
+                </div>
+              </div>
+
+              <button class="btn-admin btn mt-3" onclick="ajouterQuestionSujet()">➕ Ajouter la question</button>
+            </div>
+
+            <div class="form-card">
+              <h6 class="mb-0 fw-bold mb-3">👁️ Aperçu des questions <span id="compteurQuestionsSujet" class="badge bg-light text-dark ms-2">0</span></h6>
+              <div id="listeQuestionsSujet">
+                <p class="text-muted text-center">Aucune question ajoutée pour l'instant.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- fin section-creer_sujet -->
+
       </div>
+      <!-- fin col-md-10 -->
     </div>
-  `).join('');
-}
+    <!-- fin row -->
+  </div>
+  <!-- fin container-fluid -->
 
-async function ouvrirModificationEpreuve(id, titre) {
-  // 1. Basculer vers la section "Créer un sujet"
-  afficherSection('creer_sujet');
-
-  // 2. Configurer le contexte d'édition
-  epreuveIdSujet = id;
-  ordreAutoSujet = 1;
-
-  // 3. Masquer l'étape 1 (création épreuve) puisqu'on édite une épreuve existante
-  document.querySelector('#section-creer_sujet .form-card').style.display = 'none';
-
-  // 4. Afficher le badge + la zone questions
-  document.getElementById('badgeEpreuveSujet').textContent = `Épreuve (édition) : ${titre}`;
-  document.getElementById('sectionQuestionsSujet').style.display = '';
-  document.getElementById('btnEnvoiZoneSujet').style.display = '';
-
-  showAlertSujet(`Édition de "${titre}" — les questions existantes sont chargées ci-dessous.`, 'success');
-
-  // 5. Charger les questions existantes
-  await rafraichirListeQuestionsSujet();
-}
-
-//La vue de l'admin sur le sujet
-async function voirQuestions(epreuve_id) {
-  const zone = document.getElementById(`questions-${epreuve_id}`);
-
-  // Toggle : si déjà visible, on cache
-  if (zone.style.display !== 'none') {
-    zone.style.display = 'none';
-    return;
-  }
-
-  zone.innerHTML = '<p class="text-muted">Chargement...</p>';
-  zone.style.display = '';
-
-  const res = await fetch(`${API}/questions?epreuve_id=${epreuve_id}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const questions = await res.json();
-
-  if (!questions.length) {
-    zone.innerHTML = '<p class="text-muted">Aucune question dans ce sujet.</p>';
-    return;
-  }
-
-  zone.innerHTML = questions.map((q, i) => {
-    const choix = JSON.parse(q.choix || '[]').filter(c => c.texte);
-    const choixHtml = choix.map(c => `
-      <div style="color: ${c.est_correcte ? 'green' : '#666'}; font-size:13px;">
-        ${c.est_correcte ? '✅' : '○'} ${c.texte}
-      </div>
-    `).join('');
-
-    return `
-      <div class="mb-3">
-        <div class="fw-semibold">Q${i+1}. ${q.enonce}</div>
-        <span class="badge bg-light text-dark" style="font-size:11px;">${q.type} • ${q.points} pt(s)</span>
-        <div class="mt-1">${choixHtml || '<small class="text-muted">Correction manuelle</small>'}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-// Approuver ou rejeter une épreuve
-async function validerEpreuve(id, statut) {
-  const res = await fetch(`${API}/epreuves`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ id, statut_validation: statut })
-  });
-  const data = await res.json();
-
-  if (res.ok) {
-    document.getElementById('alertValidation').innerHTML =
-      `<div class="alert alert-success">${data.message}</div>`;
-    chargerEpreuvesAttente(); // rafraîchir la liste
-  } else {
-    document.getElementById('alertValidation').innerHTML =
-      `<div class="alert alert-danger">${data.message || 'Erreur'}</div>`;
-  }
-}
-
-// ===== Création de sujet (déplacé depuis jury.html) =====
-    let epreuveIdSujet = null;
-    let ordreAutoSujet = 1;
-
-    function showAlertSujet(msg, type = 'danger') {
-      document.getElementById('alertMsgSujet').innerHTML =
-        `<div class="alert alert-${type} alert-dismissible">${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
-    }
-
-    async function chargerConcoursSujet() {
-      const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
-      const data = await res.json();
-      const sel = document.getElementById('selectConcoursSujet');
-      sel.innerHTML = '<option value="">-- Choisir un concours --</option>';
-      data.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.titre}</option>`; });
-    }
-
-    async function creerEpreuveSujet() {
-      const concours_id = document.getElementById('selectConcoursSujet').value;
-      const titre = document.getElementById('titreEpreuve').value;
-      const type = document.getElementById('typeEpreuve').value;
-      const duree = document.getElementById('dureeEpreuve').value;
-      const coefficient = document.getElementById('coefficientEpreuve').value;
-      const date_epreuve = document.getElementById('dateEpreuve').value;
-
-      if (!concours_id || !titre || !duree) {
-        showAlertSujet('Remplis tous les champs obligatoires.');
-        return;
-      }
-
-      const res = await fetch(`${API}/epreuves`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ concours_id, titre, type, duree, coefficient, date_epreuve })
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        epreuveIdSujet = data.id;
-        document.getElementById('badgeEpreuveSujet').textContent = `Épreuve : ${titre}`;
-        document.getElementById('sectionQuestionsSujet').style.display = '';
-        showAlertSujet('Épreuve créée ! Ajoutez maintenant vos questions. ✅', 'success');
-        document.getElementById('btnEnvoiZoneSujet').style.display = '';
-        afficherFormulaireQuestionSujet();
-      } else {
-        showAlertSujet(data.message || 'Erreur lors de la création.');
-      }
-    }
-
-    function afficherFormulaireQuestionSujet() {
-      const type = document.getElementById('typeQuestion').value;
-      const zoneChoix = document.getElementById('zoneChoix');
-      const zoneMedia = document.getElementById('zoneMedia');
-
-      zoneMedia.style.display = type === 'etude_de_cas' ? '' : 'none';
-
-      if (['qcm', 'qrm'].includes(type)) {
-        zoneChoix.innerHTML = `
-          <label class="form-label fw-semibold">Choix de réponses <small class="text-muted">(${type === 'qcm' ? 'une seule bonne réponse' : 'plusieurs bonnes réponses possibles'})</small></label>
-          <div id="listeChoix">${genererChoixSujet(3)}</div>
-          <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="ajouterChoixSujet()">+ Ajouter un choix</button>
-        `;
-      } else if (type === 'vrai_faux') {
-        zoneChoix.innerHTML = `
-          <label class="form-label fw-semibold">Bonne réponse</label>
-          <select class="form-select" id="bonneReponseVraiFaux">
-            <option value="Vrai">Vrai</option>
-            <option value="Faux">Faux</option>
-          </select>
-        `;
-      } else if (type === 'completion') {
-        zoneChoix.innerHTML = `
-          <label class="form-label fw-semibold">Réponse attendue <small class="text-muted">(le ou les mots à placer dans le blanc)</small></label>
-          <input type="text" class="form-control" id="bonneReponseTexte" placeholder="Ex: photosynthèse" />
-        `;
-      } else if (type === 'calcul') {
-        zoneChoix.innerHTML = `
-          <label class="form-label fw-semibold">Résultat exact attendu</label>
-          <input type="text" class="form-control" id="bonneReponseTexte" placeholder="Ex: 42" />
-        `;
-      } else {
-        zoneChoix.innerHTML = `<div class="alert alert-info py-2">✏️ Correction manuelle par le jury — pas de choix à définir.</div>`;
-      }
-    }
-
-    function genererChoixSujet(n) {
-      let html = '';
-      for (let i = 0; i < n; i++) {
-        html += `
-          <div class="choix-item d-flex align-items-center gap-2 mb-2">
-            <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
-            <input type="text" class="form-control form-control-sm texte-choix" placeholder="Choix ${i + 1}" />
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
-          </div>`;
-      }
-      return html;
-    }
-
-    function ajouterChoixSujet() {
-      document.getElementById('listeChoix').insertAdjacentHTML('beforeend', `
-        <div class="choix-item d-flex align-items-center gap-2 mb-2">
-          <input type="checkbox" class="form-check-input est-correcte" title="Bonne réponse" />
-          <input type="text" class="form-control form-control-sm texte-choix" placeholder="Nouveau choix" />
-          <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.choix-item').remove()">✕</button>
-        </div>
-      `);
-    }
-
-    function construireChoixSujet(type) {
-      if (['qcm', 'qrm'].includes(type)) {
-        const checkboxes = document.querySelectorAll('.est-correcte');
-        const textes = document.querySelectorAll('.texte-choix');
-        let choix = [];
-        textes.forEach((t, i) => {
-          if (t.value.trim()) choix.push({ texte: t.value.trim(), est_correcte: checkboxes[i].checked });
-        });
-        return choix;
-      } else if (type === 'vrai_faux') {
-        const bonne = document.getElementById('bonneReponseVraiFaux').value;
-        return [
-          { texte: 'Vrai', est_correcte: bonne === 'Vrai' },
-          { texte: 'Faux', est_correcte: bonne === 'Faux' }
-        ];
-      } else if (['completion', 'calcul'].includes(type)) {
-        const bonne = document.getElementById('bonneReponseTexte').value.trim();
-        return [{ texte: bonne, est_correcte: true }];
-      }
-      return [];
-    }
-
-    async function ajouterQuestionSujet() {
-      const type = document.getElementById('typeQuestion').value;
-      const enonce = document.getElementById('enonce').value.trim();
-      const points = document.getElementById('points').value;
-      const choix = construireChoixSujet(type);
-
-      if (!enonce) { showAlertSujet("L'énoncé est obligatoire."); return; }
-
-      const formData = new FormData();
-      formData.append('epreuve_id', epreuveIdSujet);
-      formData.append('enonce', enonce);
-      formData.append('type', type);
-      formData.append('points', points);
-      formData.append('ordre', ordreAutoSujet);
-      formData.append('choix', JSON.stringify(choix));
-
-      if (type === 'etude_de_cas') {
-        const fichier = document.getElementById('mediaFichier').files[0];
-        if (fichier) formData.append('media', fichier);
-      }
-
-      const res = await fetch(`${API}/questions`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        afficherQuestionDansApercuSujet(type, enonce, choix, points, ordreAutoSujet, data.id);
-        ordreAutoSujet++;
-        document.getElementById('ordre').value = ordreAutoSujet;
-        document.getElementById('enonce').value = '';
-        const mediaFichier = document.getElementById('mediaFichier');
-        if (mediaFichier) mediaFichier.value = '';
-        showAlertSujet('Question ajoutée ✅', 'success');
-      } else {
-        showAlertSujet(data.message || 'Erreur.');
-      }
-    }
-
-    function afficherQuestionDansApercuSujet(type, enonce, choix, points, ordre, id) {
-  const labels = {
-    qcm: 'QCM', qrm: 'QRM', vrai_faux: 'Vrai/Faux',
-    completion: 'Complétion', calcul: 'Calcul',
-    ouverte_courte: 'Ouverte courte', ouverte_longue: 'Ouverte longue',
-    etude_de_cas: 'Étude de cas'
-  };
-
-  let choixHtml = '';
-  choix.forEach(c => {
-    choixHtml += `<div style="font-size:13px; color:${c.est_correcte ? 'green' : '#999'}">
-      ${c.est_correcte ? '✅' : '○'} ${c.texte}
-    </div>`;
-  });
-
-  const container = document.getElementById('listeQuestionsSujet');
-  if (container.querySelector('p')) container.innerHTML = '';
-
-  container.insertAdjacentHTML('beforeend', `
-    <div class="border-start border-3 ps-3 mb-3" data-id="${id}" style="border-color:#1a3a6b !important;">
-      <div class="d-flex justify-content-between align-items-start mb-1">
-        <span class="fw-semibold">Q${ordre}. ${enonce}</span>
-        <div class="d-flex gap-2 align-items-center">
-          <span class="badge bg-light text-dark" style="font-size:11px;">${labels[type]}</span>
-          <span class="badge bg-secondary">${points} pt${points > 1 ? 's' : ''}</span>
-          <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:11px;" onclick="supprimerQuestionSujet(${id})">🗑️</button>
-        </div>
-      </div>
-      ${choixHtml || '<small class="text-muted">Correction manuelle</small>'}
-    </div>
-  `);
-
-  document.getElementById('compteurQuestionsSujet').textContent = ordreAutoSujet;
-}
-
-async function supprimerQuestionSujet(questionId) {
-  if (!confirm("Supprimer définitivement cette question ?")) return;
-
-  const res = await fetch(`${API}/questions`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({ id: questionId })
-  });
-  const data = await res.json();
-
-  if (res.ok) {
-    showAlertSujet('Question supprimée ✅', 'success');
-    await rafraichirListeQuestionsSujet();
-  } else {
-    showAlertSujet(data.message || 'Erreur lors de la suppression.');
-  }
-}
-
-async function rafraichirListeQuestionsSujet() {
-  const res = await fetch(`${API}/questions?epreuve_id=${epreuveIdSujet}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  const questions = await res.json();
-
-  document.getElementById('listeQuestionsSujet').innerHTML = '';
-  ordreAutoSujet = 1;
-
-  questions.forEach(q => {
-    const choix = q.choix ? JSON.parse(q.choix).filter(c => c.id !== null) : [];
-    afficherQuestionDansApercuSujet(q.type, q.enonce, choix, q.points, ordreAutoSujet, q.id);
-    ordreAutoSujet++;
-  });
-
-  document.getElementById('ordre').value = ordreAutoSujet;
-}
-
-    async function envoyerSujetAdminDepuisAdmin() {
-      if (!epreuveIdSujet) return;
-
-      const res = await fetch(`${API}/epreuves`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ id: epreuveIdSujet, statut_validation: 'en_attente' })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        showAlertSujet('Sujet envoyé pour validation ✅', 'success');
-        document.getElementById('btnEnvoiZoneSujet').style.display = 'none';
-      } else {
-        showAlertSujet(data.message || 'Erreur envoi.');
-      }
-    }
-
-    chargerStats();
-  </script>
+  <script src="js/admin.js"></script>
 </body>
 </html>

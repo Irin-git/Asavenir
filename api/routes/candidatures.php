@@ -10,10 +10,17 @@ $data = json_decode(file_get_contents("php://input"), true);
 if ($method === 'POST') {
     $user = verifierToken();
 
+    // On vérifie que le concours_id est bien fourni avant d'aller plus loin
+    if (empty($data['concours_id'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "concours_id manquant"]);
+        exit();
+    }
+
     $db = new Database();
     $conn = $db->connect();
 
-    // Vérifier si déjà candidat
+    // Vérifier si déjà candidat à ce concours (on ne peut pas postuler deux fois)
     $check = $conn->prepare("SELECT id FROM candidatures 
         WHERE user_id = ? AND concours_id = ?");
     $check->execute([$user->id, $data['concours_id']]);
@@ -30,9 +37,9 @@ if ($method === 'POST') {
     
     $stmt->execute([$user->id, $data['concours_id']]);
 
-$candidature_id = $conn->lastInsertId();
+    $candidature_id = $conn->lastInsertId();
 
-echo json_encode(["message" => "Candidature envoyée ✅", "candidature_id" => $candidature_id]);
+    echo json_encode(["message" => "Candidature envoyée ✅", "candidature_id" => $candidature_id]);
 }
 
 // GET ALL — Admin voit toutes les candidatures
@@ -62,7 +69,7 @@ elseif ($method === 'GET' && isset($_GET['all'])) {
     echo json_encode($candidatures);
 }
 
-// GET — Voir ses candidatures
+// GET — Voir ses propres candidatures (candidat connecté)
 elseif ($method === 'GET') {
     $user = verifierToken();
 
@@ -91,6 +98,15 @@ elseif ($method === 'PUT') {
         exit();
     }
 
+    // On vérifie que le statut envoyé fait bien partie des valeurs autorisées
+    // (évite qu'une valeur invalide se retrouve en base, ex: faute de frappe côté front)
+    $statutsValides = ['en_attente', 'validé', 'rejeté'];
+    if (empty($data['id']) || empty($data['statut']) || !in_array($data['statut'], $statutsValides)) {
+        http_response_code(400);
+        echo json_encode(["message" => "id ou statut invalide"]);
+        exit();
+    }
+
     $db = new Database();
     $conn = $db->connect();
 
@@ -98,4 +114,8 @@ elseif ($method === 'PUT') {
     $stmt->execute([$data['statut'], $data['id']]);
 
     echo json_encode(["message" => "Statut mis à jour ✅"]);
+
+} else {
+    http_response_code(405);
+    echo json_encode(["message" => "Méthode non autorisée"]);
 }

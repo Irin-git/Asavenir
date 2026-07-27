@@ -3,30 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Concours — Espace Candidat</title> 
+  <title>Concours — Espace Candidat</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
     .navbar { background: #1a3a6b; }
+
+    /* Carte d'un concours dans la liste */
     .concours-card { border: none; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); transition: transform .15s; }
     .concours-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+
     .badge-ouvert { background: #d1fae5; color: #065f46; }
     .badge-ferme  { background: #fee2e2; color: #991b1b; }
     .section-title { font-size: 1.1rem; font-weight: 700; color: #1a3a6b; border-left: 4px solid #1a3a6b; padding-left: 10px; }
+
     .btn-postuler { background: #1a3a6b; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; }
     .btn-postuler:hover { background: #142f58; color: white; }
     .btn-postuler:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* Liste "mes candidatures" en bas de page */
     .candidature-item { background: white; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid #1a3a6b; }
     .status-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; }
     .status-en_attente { background: #fef3c7; color: #92400e; }
     .status-accepte    { background: #d1fae5; color: #065f46; }
     .status-refuse     { background: #fee2e2; color: #991b1b; }
+
     #loading { text-align: center; padding: 3rem; color: #6b7280; }
   </style>
 </head>
 <body>
 
-  <!-- Navbar -->
+  <!-- Navbar candidat -->
   <nav class="navbar px-4 py-3 d-flex justify-content-between align-items-center">
     <span class="text-white fw-bold fs-6">🏛️ Concours FP</span>
     <div class="d-flex align-items-center gap-3">
@@ -38,15 +45,14 @@
 
   <div class="container py-4">
 
-    <!-- Section concours disponibles -->
+    <!-- Liste des concours ouverts, remplie par concours.js -->
     <p class="section-title mb-3">Concours disponibles</p>
     <div id="loading">Chargement des concours...</div>
     <div id="listeConcours" class="row g-3"></div>
 
-    <!-- Séparateur -->
     <hr class="my-4" />
 
-    <!-- Mes candidatures -->
+    <!-- Historique des candidatures du candidat connecté -->
     <p class="section-title mb-3">Mes candidatures</p>
     <div id="listeCandidatures">
       <p class="text-muted" style="font-size:14px;">Chargement...</p>
@@ -54,206 +60,7 @@
 
   </div>
 
-  <script>
-    const API = '/concours_fp/api/index.php';
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    //Pour étiviter le putain de bug qui ne fait pas marcher l'upload des documents
-    let candidatureActuelle = null;
-
-    // Sécurité : redirige si non connecté
-    if (!token) window.location.href = 'login.html';
-
-    document.getElementById('nomUser').textContent = `👤 ${user.nom || ''}`;
-
-    function deconnexion() {
-      localStorage.clear();
-      window.location.href = 'login.html';
-    }
-
-    // Charger les concours
-    async function chargerConcours() {
-      try {
-        const res = await fetch(`${API}/concours`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const concours = await res.json();
-        document.getElementById('loading').style.display = 'none';
-
-        if (!concours.length) {
-          document.getElementById('listeConcours').innerHTML =
-            '<p class="text-muted">Aucun concours disponible pour le moment.</p>';
-          return;
-        }
-
-        const html = concours.map(c => `
-          <div class="col-md-6">
-            <div class="concours-card card p-3">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="fw-bold mb-0" style="color:#1a3a6b;">${c.titre}</h6>
-                <span class="badge ${c.statut === 'ouvert' ? 'badge-ouvert' : 'badge-ferme'} px-2 py-1 rounded-pill" style="font-size:11px;">
-                  ${c.statut === 'ouvert' ? '✅ Ouvert' : '❌ Fermé'}
-                </span>
-              </div>
-              <p class="text-muted mb-2" style="font-size:13px;">${c.description || 'Aucune description.'}</p>
-              <div class="d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                  📅 ${new Date(c.date_debut).toLocaleDateString('fr-FR')} → ${new Date(c.date_fin).toLocaleDateString('fr-FR')}
-                </small>
-                <button class="btn-postuler"
-                  id="btn-${c.id}"
-                  ${c.statut !== 'ouvert' ? 'disabled' : ''}
-                  onclick="postuler(${c.id})">
-                  Postuler
-                </button>
-              </div>
-            </div>
-          </div>
-        `).join('');
-
-        document.getElementById('listeConcours').innerHTML = html;
-      } catch {
-        document.getElementById('loading').textContent = 'Erreur de chargement.';
-      }
-    }
-
-    // Postuler à un concours
-    async function postuler(concoursId) {
-      const btn = document.getElementById(`btn-${concoursId}`);
-      btn.disabled = true;
-      btn.textContent = 'Envoi...';
-
-      try {
-        const res = await fetch(`${API}/candidatures`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ concours_id: concoursId })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          btn.textContent = '✅ Envoyée';
-          btn.style.background = '#059669';
-          chargerCandidatures();
-          ouvrirModalDocuments(data.candidature_id);
-        } else if (res.status === 409) {
-          btn.textContent = 'Déjà postulé';
-          btn.style.background = '#6b7280';
-        } else {
-          btn.disabled = false;
-          btn.textContent = 'Postuler';
-          alert(data.message || 'Erreur');
-        }
-      } catch {
-        btn.disabled = false;
-        btn.textContent = 'Postuler';
-        alert('Erreur réseau.');
-      }
-    }
-
-    // Charger mes candidatures
-    async function chargerCandidatures() {
-      try {
-        const res = await fetch(`${API}/candidatures`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const candidatures = await res.json();
-
-        if (!candidatures.length) {
-          document.getElementById('listeCandidatures').innerHTML =
-            '<p class="text-muted" style="font-size:14px;">Vous n\'avez pas encore postulé à un concours.</p>';
-          return;
-        }
-
-        const html = candidatures.map(c => `
-          <div class="candidature-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong style="font-size:14px;">${c.titre}</strong>
-              <div class="text-muted" style="font-size:12px;">
-                Du ${new Date(c.date_debut).toLocaleDateString('fr-FR')} au ${new Date(c.date_fin).toLocaleDateString('fr-FR')}
-              </div>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="status-badge status-${c.statut}">
-                ${c.statut === 'en_attente' ? '⏳ En attente' : c.statut === 'validé' ? '✅ Validé' : '❌ Refusé'}
-              </span>
-              <button class="btn btn-sm btn-outline-primary" onclick="console.log('id:', ${c.id}); ouvrirModalDocuments(${c.id})">
-                📎 Compléter mon dossier
-              </button>
-            </div>
-          </div>
-        `).join('');
-
-        document.getElementById('listeCandidatures').innerHTML = html;
-      } catch {
-        document.getElementById('listeCandidatures').innerHTML =
-          '<p class="text-danger" style="font-size:14px;">Erreur de chargement.</p>';
-      }
-    }
-
-    function ouvrirModalDocuments(candidatureId) {
-      candidatureActuelle = candidatureId;
-      document.getElementById('modalDocuments').style.display = 'flex';
-      document.getElementById('msgDocuments').textContent = '';
-    }
-
-    function fermerModalDocuments() {
-      document.getElementById('modalDocuments').style.display = 'none';
-    }
-
-    async function envoyerDocuments() {
-      const formData = new FormData();
-      formData.append('candidature_id', candidatureActuelle);
-
-      const champs = ['cin', 'photo', 'cv', 'diplome', 'acte'];
-      let tousRemplis = true;
-
-      for (const champ of champs) {
-        const input = document.getElementById(`doc_${champ}`);
-        if (!input.files[0]) {
-          alert(`⚠️ Veuillez choisir un fichier pour : ${champ}`);
-          tousRemplis = false;
-          break;
-        }
-        formData.append(champ, input.files[0]);
-      }
-
-      if (!tousRemplis) return;
-
-      const msg = document.getElementById('msgDocuments');
-      msg.textContent = 'Envoi en cours...';
-      msg.style.color = '#6b7280';
-
-      try {
-        const res = await fetch(`${API}/documents`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          msg.textContent = '✅ ' + data.message;
-          msg.style.color = '#059669';
-          setTimeout(fermerModalDocuments, 1500);
-        } else {
-          msg.textContent = '❌ ' + (data.erreurs ? data.erreurs.join(', ') : data.message);
-          msg.style.color = '#dc2626';
-        }
-      } catch {
-        msg.textContent = '❌ Erreur réseau.';
-        msg.style.color = '#dc2626';
-      }
-    }
-
-    chargerConcours();
-    chargerCandidatures();    
-  </script>
-  <!-- Modal Upload Documents -->
+  <!-- Popup pour déposer les documents après une candidature -->
   <div id="modalDocuments" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:white; border-radius:14px; padding:24px; width:90%; max-width:450px;">
       <h6 class="fw-bold mb-3" style="color:#1a3a6b;">📎 Déposer vos documents</h6>
@@ -288,5 +95,7 @@
       </div>
     </div>
   </div>
+
+  <script src="js/concours.js"></script>
 </body>
 </html>

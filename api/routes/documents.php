@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Vérifier que cette candidature appartient bien à ce candidat
+    // (empêche un candidat d'envoyer des documents pour la candidature de quelqu'un d'autre)
     $stmt = $conn->prepare("SELECT id FROM candidatures WHERE id = ? AND user_id = ?");
     $stmt->execute([$candidature_id, $user->id]);
     if (!$stmt->fetch()) {
@@ -27,13 +28,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Définir les types acceptés
+    // Types de documents acceptés + formats MIME autorisés pour chacun
     $typesAcceptes = [
         'cin'      => ['application/pdf', 'image/jpeg', 'image/png'],
         'photo'    => ['image/jpeg', 'image/png'],
         'cv'       => ['application/pdf'],
         'diplome'  => ['application/pdf'],
         'acte'     => ['application/pdf'],
+    ];
+
+    // Correction sécurité : on ne fait plus confiance au nom de fichier envoyé par l'utilisateur
+    // pour choisir l'extension. On la déduit nous-même du VRAI type MIME détecté par le serveur.
+    // Ça empêche un fichier nommé "script.php" (même avec un contenu d'image valide) d'être
+    // enregistré avec l'extension .php dans le dossier uploads.
+    $extensionsParMime = [
+        'application/pdf' => 'pdf',
+        'image/jpeg'       => 'jpg',
+        'image/png'        => 'png',
     ];
 
     $dossierBase = __DIR__ . '/../../uploads/';
@@ -50,13 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($typesAcceptes as $type => $formatsOk) {
         if (!isset($_FILES[$type]) || $_FILES[$type]['error'] === 4 || empty($_FILES[$type]['tmp_name'])) {
-    $erreurs[] = "$type manquant";
-    continue;
-}
+            $erreurs[] = "$type manquant";
+            continue;
+        }
 
         $fichier = $_FILES[$type];
+        // On lit le VRAI type du fichier à partir de son contenu, pas de son nom ou de l'en-tête envoyé par le navigateur
         $mimeType = mime_content_type($fichier['tmp_name']);
-        
+
         if (!in_array($mimeType, $formatsOk)) {
             $erreurs[] = "Format invalide pour $type";
             continue;
@@ -67,7 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
-        $extension = pathinfo($fichier['name'], PATHINFO_EXTENSION);
+        // Extension choisie par le serveur selon le mime réel, jamais depuis $fichier['name']
+        $extension = $extensionsParMime[$mimeType];
         $nomFichier = $type . '_' . $candidature_id . '_' . time() . '.' . $extension;
         $destination = $dossiers[$type] . $nomFichier;
 
@@ -92,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// GET — Récupérer les documents d'une candidature (admin)
+// GET — Récupérer les documents d'une candidature (admin uniquement)
 elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $user = verifierToken();
 

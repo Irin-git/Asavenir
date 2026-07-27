@@ -10,14 +10,23 @@ $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
 
 if ($method === 'POST' && isset($data['action']) && $data['action'] === 'register') {
+
+    // Vérification que tous les champs obligatoires sont bien présents avant de continuer
+    if (empty($data['nom']) || empty($data['email']) || empty($data['password'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Nom, email et mot de passe sont obligatoires"]);
+        exit();
+    }
+
     $db = new Database();
     $conn = $db->connect();
 
     $nom = $data['nom'];
     $email = $data['email'];
-    $password = password_hash($data['password'], PASSWORD_BCRYPT);
+    $password = password_hash($data['password'], PASSWORD_BCRYPT); // hachage cryptographique, jamais le mot de passe en clair en base
     $role = 'candidat'; // 🔒 toujours forcé, jamais pris depuis $data (sécurité)
 
+    // On vérifie que l'email n'est pas déjà utilisé par un autre compte
     $check = $conn->prepare("SELECT id FROM users WHERE email = ?");
     $check->execute([$email]);
     if ($check->fetch()) {
@@ -34,6 +43,13 @@ if ($method === 'POST' && isset($data['action']) && $data['action'] === 'registe
 }
 
 elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'login') {
+
+    if (empty($data['email']) || empty($data['password'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email et mot de passe obligatoires"]);
+        exit();
+    }
+
     $db = new Database();
     $conn = $db->connect();
 
@@ -44,12 +60,14 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'log
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // On vérifie le mot de passe avec password_verify, jamais de comparaison directe de chaînes
     if (!$user || !password_verify($password, $user['password'])) {
         http_response_code(401);
         echo json_encode(["message" => "Email ou mot de passe incorrect"]);
         exit();
     }
 
+    // Le token JWT contient l'identité et le rôle, valable 24h
     $payload = [
         "id"    => $user['id'],
         "email" => $user['email'],
@@ -83,6 +101,12 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'cre
         exit();
     }
 
+    if (empty($data['nom']) || empty($data['email']) || empty($data['password'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Nom, email et mot de passe sont obligatoires"]);
+        exit();
+    }
+
     $db = new Database();
     $conn = $db->connect();
 
@@ -91,7 +115,7 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'cre
     $password = password_hash($data['password'], PASSWORD_BCRYPT);
     $role = $data['role'] ?? 'candidat'; // ✅ ici on AUTORISE le choix, car c'est un admin qui le fait
 
-    // on limite quand même aux 3 rôles valides, pour éviter une faute de frappe
+    // On limite quand même aux 3 rôles valides, pour éviter une faute de frappe ou un rôle inventé
     if (!in_array($role, ['admin', 'jury', 'candidat'])) {
         http_response_code(400);
         echo json_encode(["message" => "Rôle invalide"]);
