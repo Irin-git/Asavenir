@@ -117,11 +117,12 @@ async function voirStatsConcours(id, titre) {
     if (chartMentionsInstance) chartMentionsInstance.destroy();
     if (chartTauxInstance) chartTauxInstance.destroy();
 
+    // Couleurs harmonisées avec la palette premium (émeraude / ambre / rouge)
     chartMentionsInstance = new Chart(document.getElementById('chartMentions'), {
       type: 'doughnut',
       data: {
         labels: ['Admis', 'Ajournés', 'Rejetés'],
-        datasets: [{ data: [s.admis, s.ajourne, s.rejete], backgroundColor: ['#198754', '#ffc107', '#dc3545'] }]
+        datasets: [{ data: [s.admis, s.ajourne, s.rejete], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'] }]
       },
       options: { plugins: { legend: { position: 'bottom' } }, maintainAspectRatio: false }
     });
@@ -130,7 +131,7 @@ async function voirStatsConcours(id, titre) {
       type: 'bar',
       data: {
         labels: ['Taux de réussite (%)'],
-        datasets: [{ label: 'Taux de réussite', data: [s.taux_reussite], backgroundColor: '#1a3a6b' }]
+        datasets: [{ label: 'Taux de réussite', data: [s.taux_reussite], backgroundColor: '#0b132b' }]
       },
       options: {
         indexAxis: 'y',
@@ -649,7 +650,7 @@ function afficherQuestionDansApercuSujet(type, enonce, choix, points, ordre, id)
   if (container.querySelector('p')) container.innerHTML = '';
 
   container.insertAdjacentHTML('beforeend', `
-    <div class="border-start border-3 ps-3 mb-3" data-id="${id}" style="border-color:#1a3a6b !important;">
+    <div class="border-start border-3 ps-3 mb-3" data-id="${id}" style="border-color:#0b132b !important;">
       <div class="d-flex justify-content-between align-items-start mb-1">
         <span class="fw-semibold">Q${ordre}. ${escapeHtml(enonce)}</span>
         <div class="d-flex gap-2 align-items-center">

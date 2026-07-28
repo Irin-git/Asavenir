@@ -15,10 +15,9 @@ function togglePassword(inputId, btn) {
   btn.innerHTML = isHidden ? eyeIcon : eyeOffIcon;
 }
 
-// Les deux icônes (œil ouvert / œil barré) en SVG, réutilisées par togglePassword
-const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
-const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
+const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
 
 // ===== Bascule entre l'onglet "Connexion" et l'onglet "Inscription" =====
 function showTab(tab) {
@@ -30,15 +29,37 @@ function showTab(tab) {
   });
 }
 
-// Affiche un message d'alerte (erreur par défaut, ou succès si précisé)
 function showAlert(msg, type = 'danger') {
   document.getElementById('alertMsg').innerHTML =
     `<div class="alert alert-${type}">${msg}</div>`;
 }
 
+// ===== Écran de transition affiché après une connexion réussie =====
+function showSuccessTransition(user) {
+  const overlay = document.getElementById('successOverlay');
+  const title = document.getElementById('successTitle');
+  const sub = document.getElementById('successSub');
+
+  const prenom = (user.nom || '').split(' ')[0];
+  const libelleRole = user.role === 'admin' ? 'espace administrateur'
+                     : user.role === 'jury' ? 'espace jury'
+                     : 'espace candidat';
+
+  title.textContent = prenom ? `Bienvenue, ${prenom}` : 'Bienvenue';
+  sub.textContent = `Ouverture de votre ${libelleRole}...`;
+
+  overlay.classList.add('show');
+
+  setTimeout(() => {
+    if (user.role === 'admin') window.location.href = 'admin.html';
+    else if (user.role === 'jury') window.location.href = 'jury.html';
+    else window.location.href = 'concours.html';
+  }, 1600);
+}
+
 // ===== Connexion =====
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault(); // on empêche le rechargement de page par défaut du formulaire
+  e.preventDefault();
 
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
@@ -52,17 +73,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const data = await res.json();
 
     if (res.ok) {
-      // On stocke le token et les infos user pour les réutiliser sur les autres pages
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      showAlert('Connexion réussie ! Redirection...', 'success');
-
-      // Petite pause avant de rediriger, le temps que le message s'affiche
-      setTimeout(() => {
-        if (data.user.role === 'admin') window.location.href = 'admin.html';
-        else if (data.user.role === 'jury') window.location.href = 'jury.html';
-        else window.location.href = 'concours.html';
-      }, 1000);
+      showSuccessTransition(data.user);
     } else {
       showAlert(data.message || 'Erreur de connexion');
     }
@@ -83,14 +96,13 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const res = await fetch(`${API}/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Le rôle est toujours "candidat" ici : personne ne peut s'inscrire en tant que jury ou admin depuis ce formulaire
       body: JSON.stringify({ action: 'register', nom, email, password, role: 'candidat' })
     });
     const data = await res.json();
 
     if (res.ok) {
       showAlert('Compte créé ! Connectez-vous maintenant.', 'success');
-      showTab('login'); // on renvoie directement vers l'onglet connexion
+      showTab('login');
     } else {
       showAlert(data.message || 'Erreur lors de l\'inscription');
     }
@@ -100,7 +112,6 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 });
 
 // ===== Si l'utilisateur est déjà connecté, on ne le laisse pas revenir sur cette page =====
-// (Correction : on tenait compte du rôle admin, mais pas du rôle jury -> on complète les 3 cas)
 if (localStorage.getItem('token')) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (user.role === 'admin') window.location.href = 'admin.html';
