@@ -3,81 +3,103 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Asavenir — Admin</title>
+  <title>Admin — Gestion des concours</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="css/admin.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="css/admin.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-  <div class="app-shell">
-
-    <!-- ============ SIDEBAR ============ -->
-    <aside class="sidebar">
-      <div class="sidebar-brand"><span class="dot"></span> ASAVENIR — Admin</div>
-
-      <div>
-        <p class="sidebar-label">Menu</p>
-        <a href="#" class="sidebar-link active" onclick="afficherSection('dashboard')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-          Tableau de bord
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('creer')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Créer un concours
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('liste')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          Liste des concours
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('candidatures')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Candidatures
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('utilisateurs')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Utilisateurs
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('validation')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          Gestion des épreuves
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('creer_sujet')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          Créer un sujet
-        </a>
-        <a href="#" class="sidebar-link" onclick="afficherSection('resultats')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h2a2 2 0 0 1 0 4h-2"/><path d="M7 6H5a2 2 0 0 0 0 4h2"/></svg>
-          Résultats
-        </a>
+  <!-- Barre du haut, juste le nom de l'admin + déconnexion -->
+  <nav class="navbar px-4 py-3 d-flex justify-content-between align-items-center">
+    <div class="brand-badge">
+      <div class="glyph">A</div>
+      <div class="brand-text">
+        <span class="name">Asavenir</span>
+        <span class="tag">Espace Admin</span>
       </div>
+    </div>
+    <div class="d-flex gap-3 align-items-center">
+      <span class="text-white" style="font-size:14px;" id="nomAdmin"></span>
+      <button class="btn btn-sm btn-outline-light" onclick="deconnexion()">Déconnexion</button>
+    </div>
+  </nav>
 
-      <div class="sidebar-footer-link">
-        <a href="concours.html" class="sidebar-link">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-          Vue candidat
-        </a>
-      </div>
-    </aside>
+  <div class="container-fluid py-4 px-4">
+    <div class="row g-4">
 
-    <!-- ============ ZONE PRINCIPALE ============ -->
-    <div class="main-area">
+      <!-- Menu de navigation entre les sections (tout est en JS, pas de vraies pages) -->
+      <div class="col-md-2">
+        <div class="sidebar">
+          <p class="sidebar-title">Menu</p>
 
-      <div class="topbar">
-        <span class="topbar-title">Espace administrateur</span>
-        <div class="topbar-user">
-          <span id="nomAdmin" style="font-size:0.85rem; color:#475569;"></span>
-          <button class="btn-logout" onclick="deconnexion()">Déconnexion</button>
+          <a href="#" class="sidebar-link active" data-color="navy" onclick="afficherSection('dashboard')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+            Tableau de bord
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="emerald" onclick="afficherSection('creer')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+            Créer un concours
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="blue" onclick="afficherSection('liste')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></span>
+            Liste des concours
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="purple" onclick="afficherSection('candidatures')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            Candidatures
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="gold" onclick="afficherSection('utilisateurs')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span>
+            Gérer les utilisateurs
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="beige" onclick="afficherSection('validation')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+            Gestion des épreuves
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="teal" onclick="afficherSection('creer_sujet')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+            Créer un sujet
+          </a>
+
+          <a href="#" class="sidebar-link" data-color="rose" onclick="afficherSection('resultats')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 4h3a2 2 0 0 1-2 4h-1"/><path d="M7 4H4a2 2 0 0 0 2 4h1"/></svg></span>
+            Résultats
+          </a>
+
+          <div class="sidebar-divider"></div>
+
+          <a href="concours.html" class="sidebar-link sidebar-external" data-color="indigo">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            Vue candidat
+          </a>
         </div>
       </div>
 
-      <div class="content-pad">
+      <!-- Toutes les sections sont chargées d'un coup, admin.js gère juste l'affichage/masquage -->
+      <div class="col-md-10">
 
         <!-- ===== Tableau de bord ===== -->
         <div id="section-dashboard">
+
+          <!-- Bloc hero animé — purement visuel, aucun ID utilisé par admin.js -->
+          <div class="dashboard-hero">
+            <div class="hero-shape shape-1"></div>
+            <div class="hero-shape shape-2"></div>
+            <div class="hero-shape shape-3"></div>
+            <h2>Bienvenue, pilotez vos concours</h2>
+            <p>Vue d'ensemble des concours en cours, des candidatures et des statistiques de réussite.</p>
+          </div>
+
           <p class="section-title">Tableau de bord</p>
 
           <div class="row g-3 mb-4" id="statsCards">
@@ -96,17 +118,18 @@
           </div>
 
           <div class="form-card mb-4">
-            <p class="fw-semibold mb-3">Sélectionnez un concours pour voir ses statistiques</p>
+            <p class="fw-semibold mb-3">📋 Sélectionnez un concours pour voir ses statistiques</p>
             <div id="listeConcoursDashboard">
               <p class="text-muted text-center py-3">Chargement...</p>
             </div>
           </div>
 
+          <!-- Ce bloc reste caché tant qu'on n'a pas cliqué sur un concours dans la liste au-dessus -->
           <div id="zoneStatsConcours" style="display:none;">
             <div class="form-card">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <p class="fw-semibold mb-0" id="titreStatsConcours">Statistiques</p>
-                <button class="btn btn-sm btn-outline-secondary" onclick="fermerStatsConcours()">Fermer</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="fermerStatsConcours()">✖ Fermer</button>
               </div>
 
               <div class="row g-3 text-center">
@@ -124,6 +147,7 @@
                 </div>
               </div>
 
+              <!-- Les deux graphes Chart.js, détruits/recréés à chaque sélection dans admin.js -->
               <div class="row mt-4">
                 <div class="col-md-6">
                   <canvas id="chartMentions" style="max-height:280px;"></canvas>
@@ -146,7 +170,7 @@
         <!-- ===== Créer un concours ===== -->
         <div id="section-creer" style="display:none;">
           <p class="section-title">Créer un nouveau concours</p>
-          <div class="form-card" style="max-width: 640px;">
+          <div class="form-card" style="max-width: 620px;">
             <div id="alertAdmin"></div>
 
             <div class="mb-3">
@@ -167,23 +191,21 @@
                 <input type="date" class="form-control" id="dateFin" />
               </div>
             </div>
-            <div class="mb-3">
+            <div class="mb-4">
               <label class="form-label fw-semibold">Statut</label>
               <select class="form-select" id="statut">
-                <option value="ouvert">Ouvert aux inscriptions</option>
-                <option value="ferme">Fermé</option>
+                <option value="ouvert">✅ Ouvert aux inscriptions</option>
+                <option value="ferme">❌ Fermé</option>
               </select>
             </div>
-            <div class="mb-1">
+
+            <div class="mb-4">
               <label class="form-label fw-semibold">Nombre de places disponibles</label>
               <input type="number" class="form-control" id="nbPlaces" min="1" placeholder="Ex: 20" />
               <small class="text-muted">Nombre de candidats qui seront automatiquement admis selon leur classement.</small>
             </div>
 
-            <!-- Bouton repositionné : ancré dans la carte, aligné à droite -->
-            <div class="card-action-bar">
-              <button class="btn-admin btn" onclick="creerConcours()">Publier le concours</button>
-            </div>
+            <button class="btn-admin btn" onclick="creerConcours()">Publier le concours</button>
           </div>
         </div>
 
@@ -237,7 +259,7 @@
         <!-- ===== Créer un utilisateur (admin/jury) ===== -->
         <div id="section-utilisateurs" style="display:none;">
           <p class="section-title">Créer un utilisateur (Admin / Jury)</p>
-          <div class="form-card" style="max-width: 520px;">
+          <div class="form-card" style="max-width: 500px;">
             <div id="alertUser"></div>
 
             <div class="mb-3">
@@ -252,7 +274,7 @@
               <label class="form-label fw-semibold">Mot de passe</label>
               <input type="password" class="form-control" id="newPassword" />
             </div>
-            <div class="mb-1">
+            <div class="mb-4">
               <label class="form-label fw-semibold">Rôle</label>
               <select class="form-select" id="newRole">
                 <option value="jury">Jury</option>
@@ -260,15 +282,13 @@
               </select>
             </div>
 
-            <div class="card-action-bar">
-              <button class="btn-admin btn" onclick="creerUtilisateur()">Créer l'utilisateur</button>
-            </div>
+            <button class="btn-admin btn" onclick="creerUtilisateur()">Créer l'utilisateur</button>
           </div>
         </div>
 
         <!-- ===== Gestion des épreuves ===== -->
         <div id="section-validation" style="display:none;">
-          <p class="section-title">Gestion des épreuves</p>
+          <p class="section-title">📋 Gestion des épreuves</p>
           <div class="form-card">
             <div id="alertValidation"></div>
             <div id="listeEpreuvesAttente">
@@ -279,7 +299,7 @@
 
         <!-- ===== Résultats ===== -->
         <div id="section-resultats" style="display:none;">
-          <p class="section-title">Résultats des concours</p>
+          <p class="section-title">🏆 Résultats des concours</p>
 
           <div class="form-card mb-4">
             <label class="form-label fw-semibold">Sélectionnez un concours</label>
@@ -295,12 +315,12 @@
 
         <!-- ===== Créer un sujet (épreuve + questions) ===== -->
         <div id="section-creer_sujet" style="display:none;">
-          <p class="section-title">Créer un sujet (épreuve + questions)</p>
+          <p class="section-title">➕ Créer un sujet (épreuve + questions)</p>
           <div id="alertMsgSujet"></div>
 
           <!-- Étape 1 : l'épreuve elle-même -->
           <div class="form-card mb-4">
-            <h6 class="mb-0 fw-bold mb-3">Étape 1 — Créer une épreuve</h6>
+            <h6 class="mb-0 fw-bold mb-3">📋 Étape 1 — Créer une épreuve</h6>
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Concours</label>
@@ -332,17 +352,17 @@
                 <label class="form-label fw-semibold">Date de l'épreuve</label>
                 <input type="datetime-local" class="form-control" id="dateEpreuve" />
               </div>
-            </div>
-            <div class="card-action-bar">
-              <button class="btn-admin btn" onclick="creerEpreuveSujet()">Créer l'épreuve</button>
+              <div class="col-12">
+                <button class="btn-admin btn" onclick="creerEpreuveSujet()">✅ Créer l'épreuve</button>
+              </div>
             </div>
           </div>
 
-          <!-- Étape 2 -->
+          <!-- Étape 2 : reste cachée tant que l'épreuve n'existe pas encore -->
           <div id="sectionQuestionsSujet" style="display:none;">
             <div class="form-card mb-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0 fw-bold">Étape 2 — Ajouter des questions</h6>
+                <h6 class="mb-0 fw-bold">❓ Étape 2 — Ajouter des questions</h6>
                 <span class="badge bg-light text-dark" id="badgeEpreuveSujet"></span>
               </div>
 
@@ -365,12 +385,14 @@
                 <textarea class="form-control" id="enonce" rows="2" placeholder="Écrivez la question ici..."></textarea>
               </div>
 
+              <!-- Uniquement pour le type "étude de cas", géré en JS -->
               <div class="mb-3" id="zoneMedia" style="display:none;">
                 <label class="form-label fw-semibold">Fichier de l'étude de cas (PDF ou image)</label>
                 <input type="file" class="form-control" id="mediaFichier" accept=".pdf,image/*" />
                 <small class="text-muted">Formats acceptés : PDF, JPG, PNG</small>
               </div>
 
+              <!-- Rempli dynamiquement selon le type de question choisi -->
               <div id="zoneChoix"></div>
 
               <div class="row g-3 mt-1">
@@ -384,13 +406,17 @@
                 </div>
               </div>
 
-              <div class="card-action-bar">
-                <button class="btn-admin btn" onclick="ajouterQuestionSujet()">Ajouter la question</button>
-              </div>
+              <button class="btn-admin btn mt-3" onclick="ajouterQuestionSujet()">➕ Ajouter la question</button>
+
+              <!-- Corrige un bug : admin.js fait référence à cet ID (creerEpreuveSujet())
+                   mais il n'existait dans aucune version précédente du HTML, ce qui aurait
+                   provoqué un crash JS silencieux ("Cannot set properties of null") juste
+                   après la création d'une épreuve. Élément gardé caché, purement technique. -->
+              <span id="btnEnvoiZoneSujet" style="display:none;"></span>
             </div>
 
             <div class="form-card">
-              <h6 class="mb-0 fw-bold mb-3">Aperçu des questions <span id="compteurQuestionsSujet" class="badge bg-light text-dark ms-2">0</span></h6>
+              <h6 class="mb-0 fw-bold mb-3">👁️ Aperçu des questions <span id="compteurQuestionsSujet" class="badge bg-light text-dark ms-2">0</span></h6>
               <div id="listeQuestionsSujet">
                 <p class="text-muted text-center">Aucune question ajoutée pour l'instant.</p>
               </div>
@@ -400,13 +426,12 @@
         <!-- fin section-creer_sujet -->
 
       </div>
-      <!-- fin content-pad -->
+      <!-- fin col-md-10 -->
     </div>
-    <!-- fin main-area -->
+    <!-- fin row -->
   </div>
-  <!-- fin app-shell -->
+  <!-- fin container-fluid -->
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

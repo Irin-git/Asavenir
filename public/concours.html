@@ -5,65 +5,70 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Concours — Espace Candidat</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <style>
-    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
-    .navbar { background: #1a3a6b; }
-
-    /* Carte d'un concours dans la liste */
-    .concours-card { border: none; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); transition: transform .15s; }
-    .concours-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
-
-    .badge-ouvert { background: #d1fae5; color: #065f46; }
-    .badge-ferme  { background: #fee2e2; color: #991b1b; }
-    .section-title { font-size: 1.1rem; font-weight: 700; color: #1a3a6b; border-left: 4px solid #1a3a6b; padding-left: 10px; }
-
-    .btn-postuler { background: #1a3a6b; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; }
-    .btn-postuler:hover { background: #142f58; color: white; }
-    .btn-postuler:disabled { background: #9ca3af; cursor: not-allowed; }
-
-    /* Liste "mes candidatures" en bas de page */
-    .candidature-item { background: white; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid #1a3a6b; }
-    .status-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; }
-    .status-en_attente { background: #fef3c7; color: #92400e; }
-    .status-accepte    { background: #d1fae5; color: #065f46; }
-    .status-refuse     { background: #fee2e2; color: #991b1b; }
-
-    #loading { text-align: center; padding: 3rem; color: #6b7280; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="css/concours.css" rel="stylesheet" />
 </head>
 <body>
 
   <!-- Navbar candidat -->
   <nav class="navbar px-4 py-3 d-flex justify-content-between align-items-center">
-    <span class="text-white fw-bold fs-6">🏛️ Concours FP</span>
+    <div class="brand-badge">
+      <div class="glyph">A</div>
+      <div class="brand-text">
+        <span class="name">Asavenir</span>
+        <span class="tag">Espace Candidat</span>
+      </div>
+    </div>
     <div class="d-flex align-items-center gap-3">
       <span class="text-white" id="nomUser" style="font-size: 14px;"></span>
-      <a href="epreuves.html" class="btn btn-sm btn-success">📝 Mes épreuves</a>
+      <button class="btn-mes-candidatures" onclick="toggleCandidatures()">📂 Mes candidatures</button>
+      <a href="epreuves.html" class="btn-mes-epreuves">📝 Mes épreuves</a>
       <button class="btn btn-sm btn-outline-light" onclick="deconnexion()">Déconnexion</button>
     </div>
   </nav>
 
   <div class="container py-4">
 
-    <!-- Liste des concours ouverts, remplie par concours.js -->
-    <p class="section-title mb-3">Concours disponibles</p>
-    <div id="loading">Chargement des concours...</div>
-    <div id="listeConcours" class="row g-3"></div>
+    <!-- Bloc hero animé — purement visuel, aucun ID utilisé par concours.js -->
+    <div class="candidat-hero">
+      <div class="hero-shape shape-1"></div>
+      <div class="hero-shape shape-2"></div>
+      <div class="hero-shape shape-3"></div>
+      <h2>Bienvenue sur votre espace</h2>
+      <p>Consultez les concours ouverts, déposez votre candidature et suivez l'avancement de votre dossier en un coup d'œil.</p>
+    </div>
 
-    <hr class="my-4" />
-
-    <!-- Historique des candidatures du candidat connecté -->
-    <p class="section-title mb-3">Mes candidatures</p>
-    <div id="listeCandidatures">
-      <p class="text-muted" style="font-size:14px;">Chargement...</p>
+    <!-- Concours en pleine largeur — "Mes candidatures" est maintenant un tiroir (voir plus bas) -->
+    <div class="col-concours">
+      <p class="section-title mb-3">Concours disponibles</p>
+      <div id="loading">Chargement des concours...</div>
+      <div id="listeConcours" class="row g-3"></div>
     </div>
 
   </div>
 
+  <!-- Overlay assombri derrière le tiroir, cliquable pour fermer -->
+  <div id="overlayCandidatures" class="drawer-overlay" onclick="toggleCandidatures()"></div>
+
+  <!-- Tiroir "Mes candidatures", caché par défaut, coulisse depuis la droite -->
+  <div id="drawerCandidatures" class="drawer-candidatures">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <p class="section-title accent-side mb-0">Mes candidatures</p>
+      <button class="btn-close-drawer" onclick="toggleCandidatures()">✕</button>
+    </div>
+    <div id="listeCandidatures">
+      <p class="text-muted" style="font-size:14px;">Chargement...</p>
+    </div>
+  </div>
+
+  </div>
+
   <!-- Popup pour déposer les documents après une candidature -->
-  <div id="modalDocuments" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div id="modalDocuments" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(43,33,22,0.45); z-index:1300; align-items:center; justify-content:center;">
     <div style="background:white; border-radius:14px; padding:24px; width:90%; max-width:450px;">
-      <h6 class="fw-bold mb-3" style="color:#1a3a6b;">📎 Déposer vos documents</h6>
+      <h6 class="fw-bold mb-3">📎 Déposer vos documents</h6>
       <p class="text-muted" style="font-size:13px;">Tous les champs sont obligatoires.</p>
 
       <div class="mb-2">
@@ -97,5 +102,25 @@
   </div>
 
   <script src="js/concours.js"></script>
+  <script>
+    // Ouverture/fermeture du tiroir "Mes candidatures" — purement visuel,
+    // ne touche à aucune fonction ou variable de concours.js.
+    function toggleCandidatures() {
+      document.getElementById('drawerCandidatures').classList.toggle('open');
+      document.getElementById('overlayCandidatures').classList.toggle('visible');
+    }
+
+    // On surcharge ouvrirModalDocuments() (définie dans concours.js) juste pour
+    // fermer le tiroir automatiquement quand la modale s'ouvre depuis celui-ci
+    // (ex: clic sur "Compléter mon dossier" pendant que le tiroir est ouvert).
+    // La logique d'origine (candidatureActuelle, affichage de la modale) reste
+    // intacte, on l'appelle simplement avant de fermer le tiroir.
+    const origOuvrirModalDocuments = ouvrirModalDocuments;
+    ouvrirModalDocuments = function(candidatureId) {
+      origOuvrirModalDocuments(candidatureId);
+      document.getElementById('drawerCandidatures').classList.remove('open');
+      document.getElementById('overlayCandidatures').classList.remove('visible');
+    };
+  </script>
 </body>
 </html>
