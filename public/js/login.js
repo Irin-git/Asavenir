@@ -1,9 +1,11 @@
 // ===============================
-// login.js — Page de connexion / inscription
+// login.js — Page de connexion / inscription / mot de passe oublié
 // ===============================
-// Ce fichier gère les deux formulaires de la page login.html :
-// - le formulaire de connexion (candidat, jury, admin)
-// - le formulaire d'inscription (uniquement pour les candidats)
+// Ce fichier gère 4 écrans dans la carte d'authentification :
+// - loginView       : connexion (candidat, jury, admin)
+// - registerView    : inscription (candidats uniquement)
+// - forgotEmailView : demande du code de réinitialisation (saisie email)
+// - forgotResetView : saisie du code reçu + nouveau mot de passe
 
 const API = '/concours_fp/api/index.php';
 
@@ -19,19 +21,56 @@ const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" 
 
 const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
 
-// ===== Bascule entre l'onglet "Connexion" et l'onglet "Inscription" =====
+// ===== Bascule entre les 4 écrans (login / register / forgotEmail / forgotReset) =====
+// Le switch pilule (Connexion/Inscription) n'est visible que pour login/register.
 function showTab(tab) {
-  document.getElementById('loginForm').style.display = tab === 'login' ? '' : 'none';
-  document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
-  document.getElementById('alertMsg').innerHTML = '';
-  document.querySelectorAll('.nav-link').forEach((btn, i) => {
-    btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+  const views = {
+    login: document.getElementById('loginView'),
+    register: document.getElementById('registerView'),
+    forgotEmail: document.getElementById('forgotEmailView'),
+    forgotReset: document.getElementById('forgotResetView')
+  };
+  const forms = {
+    login: document.getElementById('loginForm'),
+    register: document.getElementById('registerForm')
+  };
+
+  // On affiche uniquement la vue demandée
+  Object.keys(views).forEach(key => {
+    views[key].classList.toggle('visible', key === tab);
   });
+
+  // Le switch pilule ne concerne que login/register
+  const authTab = document.getElementById('authTab');
+  const isAuthTab = (tab === 'login' || tab === 'register');
+  authTab.style.display = isAuthTab ? 'flex' : 'none';
+
+  if (isAuthTab) {
+    authTab.classList.toggle('reg', tab === 'register');
+    forms.login.classList.toggle('visible', tab === 'login');
+    forms.register.classList.toggle('visible', tab === 'register');
+    document.querySelectorAll('#authTab button').forEach((btn, i) => {
+      btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+    });
+  }
+
+  document.getElementById('alertMsg').innerHTML = '';
 }
 
 function showAlert(msg, type = 'danger') {
-  document.getElementById('alertMsg').innerHTML =
-    `<div class="alert alert-${type}">${msg}</div>`;
+  const container = document.getElementById('alertMsg');
+  container.innerHTML = ''; // on repart d'un conteneur vide
+
+  const box = document.createElement('div');
+  box.className = `alert alert-${type}`;
+  box.textContent = msg; // textContent (pas innerHTML) : le message serveur ne peut jamais injecter de HTML/JS
+
+  container.appendChild(box);
+}
+
+// ===== Raccourci pour ouvrir l'écran "mot de passe oublié" depuis le lien de loginForm =====
+function showForgotPassword() {
+  showTab('forgotEmail');
 }
 
 // ===== Écran de transition affiché après une connexion réussie =====
@@ -105,6 +144,56 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
       showTab('login');
     } else {
       showAlert(data.message || 'Erreur lors de l\'inscription');
+    }
+  } catch {
+    showAlert('Impossible de contacter le serveur.');
+  }
+});
+
+// ===== Mot de passe oublié — Étape 1 : demande du code par email =====
+document.getElementById('forgotEmailForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById('forgotEmail').value;
+
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'forgot_password', email })
+    });
+    await res.json();
+
+    // On passe à l'écran 2 quelle que soit la réponse du serveur :
+    // sécurité "account enumeration" — ne jamais révéler si l'email existe ou non.
+    document.getElementById('forgotResetView').dataset.email = email;
+    showTab('forgotReset');
+  } catch {
+    showAlert('Impossible de contacter le serveur.');
+  }
+});
+
+// ===== Mot de passe oublié — Étape 2 : vérification du code + nouveau mot de passe =====
+document.getElementById('forgotResetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById('forgotResetView').dataset.email;
+  const code = document.getElementById('forgotCode').value;
+  const new_password = document.getElementById('forgotNewPassword').value;
+
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_password', email, code, new_password })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showTab('login');
+      showAlert('Mot de passe réinitialisé ✅ Vous pouvez vous connecter.', 'success');
+    } else {
+      showAlert(data.message || 'Code invalide ou expiré');
     }
   } catch {
     showAlert('Impossible de contacter le serveur.');

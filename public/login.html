@@ -7,380 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --navy: #0A1F44;
-      --navy-deep: #051029;
-      --blue-vivid: #2F6FED;
-      --blue-light: #5B9CFF;
-      --emerald: #00C896;
-      --emerald-dark: #00A67D;
-      --beige: #F0C48A;
-      --beige-dark: #D9A85F;
-      --white: #FFFFFF;
-      --danger: #FF5C5C;
-      --ink: #10203F;
-      --ink-soft: #5B6B8C;
-      --border: #E4E9F2;
-      --radius-lg: 24px;
-      --radius-md: 14px;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: 'Inter', sans-serif;
-      color: var(--ink);
-      background: var(--white);
-      display: flex;
-    }
-
-    /* ===== PANNEAU GAUCHE — Journey visual ===== */
-    .panel-left {
-      flex: 1.1;
-      min-height: 100vh;
-      position: relative;
-      background:
-        radial-gradient(circle at 15% 20%, rgba(91,156,255,0.35), transparent 45%),
-        radial-gradient(circle at 85% 80%, rgba(0,200,150,0.28), transparent 50%),
-        linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 4rem 3.5rem;
-      overflow: hidden;
-    }
-
-    .panel-left::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-      background-size: 26px 26px;
-      opacity: 0.5;
-    }
-
-    .brand-mark {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      margin-bottom: 3.5rem;
-    }
-
-    .brand-mark .glyph {
-      width: 40px; height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--blue-vivid), var(--emerald));
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700; color: var(--navy-deep); font-size: 18px;
-    }
-
-    .brand-mark span {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 600; font-size: 1.15rem; color: var(--white);
-      letter-spacing: 0.01em;
-    }
-
-    .hero-copy {
-      position: relative;
-      max-width: 420px;
-      margin-bottom: 3.5rem;
-    }
-
-    .hero-copy h1 {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 2.4rem;
-      line-height: 1.15;
-      font-weight: 600;
-      color: var(--white);
-      margin: 0 0 1rem;
-    }
-
-    .hero-copy h1 em {
-      font-style: normal;
-      background: linear-gradient(90deg, var(--blue-light), var(--emerald));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-
-    .hero-copy p {
-      color: #AFC0E0;
-      font-size: 0.98rem;
-      line-height: 1.6;
-      margin: 0;
-    }
-
-    /* Journey / frise du parcours candidat */
-    .journey {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-
-    .journey-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      position: relative;
-      padding-bottom: 2.2rem;
-    }
-
-    .journey-step:last-child { padding-bottom: 0; }
-
-    .journey-step .dot-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .journey-step .dot {
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: var(--white);
-      box-shadow: 0 0 0 4px rgba(255,255,255,0.12);
-      flex-shrink: 0;
-      position: relative;
-      z-index: 1;
-    }
-
-    .journey-step.active .dot {
-      background: var(--emerald);
-      box-shadow: 0 0 0 4px rgba(0,200,150,0.25);
-      animation: pulse-dot 2.2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { box-shadow: 0 0 0 4px rgba(0,200,150,0.25); }
-      50% { box-shadow: 0 0 0 8px rgba(0,200,150,0.12); }
-    }
-
-    .journey-step .line {
-      width: 2px;
-      flex: 1;
-      background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.05));
-      margin-top: 4px;
-      min-height: 38px;
-    }
-
-    .journey-step .step-text { padding-top: -2px; }
-
-    .journey-step .step-text .label {
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--beige);
-      font-weight: 600;
-      margin-bottom: 0.2rem;
-    }
-
-    .journey-step .step-text .title {
-      font-family: 'Space Grotesk', sans-serif;
-      color: var(--white);
-      font-size: 1.02rem;
-      font-weight: 600;
-    }
-
-    .journey-step .step-text .sub {
-      color: #9AACD1;
-      font-size: 0.84rem;
-      margin-top: 0.15rem;
-    }
-
-    /* ===== PANNEAU DROIT — Formulaire ===== */
-    .panel-right {
-      flex: 1;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      background: #FBFCFE;
-    }
-
-    .auth-card {
-      width: 100%;
-      max-width: 400px;
-      animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .auth-card h2 {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.6rem;
-      font-weight: 600;
-      margin: 0 0 0.3rem;
-      color: var(--navy);
-    }
-
-    .auth-card .subtitle {
-      color: var(--ink-soft);
-      font-size: 0.92rem;
-      margin: 0 0 1.8rem;
-    }
-
-    /* Switch pilule animé */
-    .switch {
-      position: relative;
-      display: flex;
-      background: #EFF2F8;
-      border-radius: 999px;
-      padding: 4px;
-      margin-bottom: 2rem;
-    }
-
-    .switch .thumb {
-      position: absolute;
-      top: 4px; bottom: 4px; left: 4px;
-      width: calc(50% - 4px);
-      background: var(--navy);
-      border-radius: 999px;
-      transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1);
-      z-index: 0;
-    }
-
-    .switch.reg .thumb { transform: translateX(100%); }
-
-    .switch button {
-      flex: 1;
-      position: relative;
-      z-index: 1;
-      border: none;
-      background: transparent;
-      padding: 0.65rem 0;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      font-size: 0.88rem;
-      color: var(--ink-soft);
-      cursor: pointer;
-      border-radius: 999px;
-      transition: color 0.3s;
-    }
-
-    .switch button.active { color: var(--white); }
-
-    #alertMsg .alert {
-      border-radius: var(--radius-md);
-      font-size: 0.85rem;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.2rem;
-      font-weight: 500;
-      border: none;
-    }
-
-    #alertMsg .alert-danger { background: #FFEDED; color: #C23434; }
-    #alertMsg .alert-success { background: #E3FBF3; color: #0B8F6C; }
-
-    .field {
-      margin-bottom: 1.15rem;
-    }
-
-    .field label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--ink);
-      margin-bottom: 0.4rem;
-    }
-
-    .input-wrap {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    .field input {
-      width: 100%;
-      padding: 0.8rem 1rem;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-md);
-      font-family: 'Inter', sans-serif;
-      font-size: 0.92rem;
-      color: var(--ink);
-      background: var(--white);
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .field input:focus {
-      border-color: var(--blue-vivid);
-      box-shadow: 0 0 0 4px rgba(47,111,237,0.12);
-    }
-
-    .field input[type="password"] { padding-right: 2.8rem; }
-
-    .eye-btn {
-      position: absolute;
-      right: 0.7rem;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--ink-soft);
-      display: flex;
-      padding: 0.3rem;
-      border-radius: 8px;
-      transition: color 0.2s, background 0.2s;
-    }
-
-    .eye-btn:hover { color: var(--navy); background: #F0F3F9; }
-
-    .btn-submit {
-      width: 100%;
-      margin-top: 0.4rem;
-      padding: 0.9rem;
-      border: none;
-      border-radius: var(--radius-md);
-      font-family: 'Inter', sans-serif;
-      font-weight: 700;
-      font-size: 0.95rem;
-      color: var(--white);
-      background: linear-gradient(90deg, var(--blue-vivid), var(--emerald-dark));
-      background-size: 200% 100%;
-      background-position: 0% 0%;
-      cursor: pointer;
-      transition: background-position 0.4s ease, transform 0.15s ease, box-shadow 0.3s ease;
-      box-shadow: 0 8px 20px rgba(47,111,237,0.25);
-    }
-
-    .btn-submit:hover {
-      background-position: 100% 0%;
-      transform: translateY(-2px);
-      box-shadow: 0 12px 26px rgba(0,168,125,0.3);
-    }
-
-    .btn-submit:active { transform: translateY(0); }
-
-    .foot-note {
-      text-align: center;
-      color: var(--ink-soft);
-      font-size: 0.78rem;
-      margin-top: 1.8rem;
-    }
-
-    .foot-note .dot-sep { color: var(--beige-dark); margin: 0 0.4rem; }
-
-    form { display: none; }
-    form.visible { display: block; animation: fade-in 0.35s ease; }
-
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 900px) {
-      .panel-left { display: none; }
-      .panel-right { padding: 1.5rem; }
-    }
-  </style>
+  <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
 
@@ -435,7 +62,8 @@
         <button onclick="showTab('register')">Inscription</button>
       </div>
 
-      <div id="loginView">
+      <!-- ===== Écran : Connexion ===== -->
+      <div id="loginView" class="auth-view visible">
         <h2>Bon retour</h2>
         <p class="subtitle">Connectez-vous à votre espace candidat.</p>
 
@@ -454,10 +82,14 @@
             </div>
           </div>
           <button type="submit" class="btn-submit">Se connecter</button>
+          <p class="link-line">
+            <a href="#" class="link-forgot" role="button" onclick="showForgotPassword(); return false;">Mot de passe oublié ?</a>
+          </p>
         </form>
       </div>
 
-      <div id="registerView" style="display:none;">
+      <!-- ===== Écran : Inscription ===== -->
+      <div id="registerView" class="auth-view">
         <h2>Créer un compte</h2>
         <p class="subtitle">Rejoignez la plateforme en quelques secondes.</p>
 
@@ -483,27 +115,62 @@
         </form>
       </div>
 
+      <!-- ===== Écran : Mot de passe oublié — Étape 1 (saisie email) ===== -->
+      <div id="forgotEmailView" class="auth-view">
+        <h2>Mot de passe oublié</h2>
+        <p class="subtitle">Entrez votre email, un code de vérification vous sera envoyé.</p>
+
+        <form id="forgotEmailForm">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="forgotEmail" placeholder="votre@email.com" required />
+          </div>
+          <button type="submit" class="btn-submit">Envoyer le code</button>
+        </form>
+        <p class="link-line">
+          <a href="#" class="link-back" role="button" onclick="showTab('login'); return false;">← Retour à la connexion</a>
+        </p>
+      </div>
+
+      <!-- ===== Écran : Mot de passe oublié — Étape 2 (code + nouveau mot de passe) ===== -->
+      <div id="forgotResetView" class="auth-view">
+        <h2>Vérification</h2>
+        <p class="subtitle">Entrez le code reçu par email et votre nouveau mot de passe.</p>
+
+        <form id="forgotResetForm">
+          <div class="field">
+            <label>Code à 6 chiffres</label>
+            <input type="text" id="forgotCode" maxlength="6" placeholder="123456" required />
+          </div>
+          <div class="field">
+            <label>Nouveau mot de passe</label>
+            <div class="input-wrap">
+              <input type="password" id="forgotNewPassword" placeholder="••••••••" required />
+              <button type="button" class="eye-btn" onclick="togglePassword('forgotNewPassword', this)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit">Réinitialiser le mot de passe</button>
+        </form>
+        <p class="link-line">
+          <a href="#" class="link-back" role="button" onclick="showTab('login'); return false;">← Retour à la connexion</a>
+        </p>
+      </div>
+
       <p class="foot-note">Ministère de la Fonction Publique <span class="dot-sep">•</span> Plateforme sécurisée</p>
     </div>
   </div>
 
+  <!-- Overlay de transition affiché juste après une connexion réussie (avant redirection) -->
+  <div id="successOverlay" class="success-overlay">
+    <div class="success-box">
+      <div class="success-glyph">A</div>
+      <h2 id="successTitle">Bienvenue</h2>
+      <p id="successSub">Ouverture de votre espace...</p>
+    </div>
+  </div>
+
   <script src="js/login.js"></script>
-  <script>
-    // Adapte l'affichage (switch pilule + vues) sans toucher à la logique de login.js.
-    // login.js continue de gérer #loginForm / #registerForm en display + classe .nav-link sur les boutons du switch,
-    // donc on synchronise juste le visuel ici en observant les mêmes éléments.
-    const origShowTab = showTab;
-    showTab = function(tab) {
-      origShowTab(tab);
-      document.getElementById('authTab').classList.toggle('reg', tab === 'register');
-      document.getElementById('loginView').style.display = tab === 'login' ? '' : 'none';
-      document.getElementById('registerView').style.display = tab === 'register' ? '' : 'none';
-      document.getElementById('loginForm').classList.toggle('visible', tab === 'login');
-      document.getElementById('registerForm').classList.toggle('visible', tab === 'register');
-      document.querySelectorAll('#authTab button').forEach((btn, i) => {
-        btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
-      });
-    };
-  </script>
 </body>
 </html>
