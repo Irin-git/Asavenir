@@ -137,6 +137,102 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'cre
     echo json_encode(["message" => "Utilisateur créé ✅"]);
 }
 
+elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'forgot_password') {
+
+    if (empty($data['email'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email obligatoire"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $email = $data['email'];
+
+    $stmt = $conn->prepare("SELECT id, nom FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 🔒 Réponse identique que l'email existe ou non — évite de révéler les comptes inscrits
+    if (!$user) {
+        echo json_encode(["message" => "Si cet email existe, un code a été envoyé ✅"]);
+        exit();
+    }
+
+    // Génération du code à 6 chiffres (entre 100000 et 999999, jamais de zéro en tête ambigu)
+    $code = strval(random_int(100000, 999999));
+
+    // On laisse MySQL calculer l'expiration (même horloge que expire_at > NOW() plus tard)
+    $insert = $conn->prepare("INSERT INTO password_resets (user_id, code, expire_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))");
+    $insert->execute([$user['id'], $code]);
+
+    // Envoi de l'email via la fonction utilitaire (fichier séparé, voir plus bas)
+    require_once __DIR__ . '/../utils/mailer_send.php';
+    $envoye = envoyerEmailCode($email, $user['nom'], $code, 'reset');
+
+    if (!$envoye) {
+        http_response_code(500);
+        echo json_encode(["message" => "Erreur lors de l'envoi de l'email"]);
+        exit();
+    }
+
+    echo json_encode(["message" => "Si cet email existe, un code a été envoyé ✅"]);
+}
+
+elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'reset_password') {
+
+    if (empty($data['email']) || empty($data['code']) || empty($data['new_password'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email, code et nouveau mot de passe obligatoires"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $email = $data['email'];
+    $code = $data['code'];
+    $newPassword = $data['new_password'];
+
+    // On récupère l'utilisateur
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        http_response_code(400);
+        echo json_encode(["message" => "Code invalide ou expiré"]);
+        exit();
+    }
+
+    // On cherche un code valide : correspondant, non utilisé, non expiré
+    $stmtCode = $conn->prepare("
+        SELECT id FROM password_resets
+        WHERE user_id = ? AND code = ? AND utilise = 0 AND expire_at > NOW()
+        ORDER BY id DESC LIMIT 1
+    ");
+    $stmtCode->execute([$user['id'], $code]);
+    $reset = $stmtCode->fetch(PDO::FETCH_ASSOC);
+
+    if (!$reset) {
+        http_response_code(400);
+        echo json_encode(["message" => "Code invalide ou expiré"]);
+        exit();
+    }
+
+    // Mise à jour du mot de passe (toujours haché, jamais en clair)
+    $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+    $update = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+    $update->execute([$hashedPassword, $user['id']]);
+
+    // Le code est marqué comme utilisé — impossible de le réutiliser
+    $invalidate = $conn->prepare("UPDATE password_resets SET utilise = 1 WHERE id = ?");
+    $invalidate->execute([$reset['id']]);
+
+    echo json_encode(["message" => "Mot de passe réinitialisé avec succès ✅"]);
+}
+
 else {
     http_response_code(400);
     echo json_encode(["message" => "Action non reconnue"]);

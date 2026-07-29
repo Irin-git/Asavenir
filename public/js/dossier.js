@@ -2,9 +2,18 @@ const API = '/concours_fp/api/index.php';
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-if (!token || user.role !== 'admin') {
+// Cette page est maintenant partagée par deux rôles :
+// - admin : consulte le dossier ET prend la décision finale (Valider/Rejeter)
+// - jury  : consulte le dossier uniquement, pour se forger un avis (les boutons de décision sont masqués plus bas)
+if (!token || !['admin', 'jury'].includes(user.role)) {
   window.location.href = 'login.html';
   throw new Error('Accès non autorisé - arrêt du script dossier.js');
+}
+
+// Le jury n'a pas le pouvoir de décision finale : on cache entièrement la zone Valider/Rejeter
+if (user.role === 'jury') {
+  const zoneDecision = document.getElementById('zoneDecisionAdmin');
+  if (zoneDecision) zoneDecision.style.display = 'none';
 }
 
 function escapeHtml(str) {
@@ -80,6 +89,8 @@ async function chargerDocuments() {
   }
 }
 
+// Réservé à l'admin : le bouton correspondant est masqué pour le jury, donc cette fonction
+// n'est jamais appelable depuis l'interface jury (elle reste aussi protégée côté serveur, voir candidatures.php)
 async function valider(statut) {
   // On ne laisse jamais partir un appel avec un id absent
   if (!candidatureId) {

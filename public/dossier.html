@@ -15,7 +15,7 @@
 </head>
 <body>
 
-  <!-- Cette page s'ouvre dans un nouvel onglet depuis admin.html, d'où le bouton "Fermer" -->
+  <!-- Cette page s'ouvre dans un nouvel onglet depuis admin.html ou jury.html, d'où le bouton "Fermer" -->
   <nav class="navbar navbar-dark px-4 py-3 d-flex justify-content-between">
     <span class="navbar-brand fw-bold">🏛️ Dossier du candidat</span>
     <button class="btn btn-outline-light btn-sm" onclick="window.close()">✖ Fermer</button>
@@ -44,8 +44,8 @@
       </div>
     </div>
 
-    <!-- Décision de l'admin sur la candidature -->
-    <div class="d-flex gap-3 justify-content-end">
+    <!-- Décision finale : réservée à l'admin, masquée en JS si un membre du jury consulte cette page -->
+    <div class="d-flex gap-3 justify-content-end" id="zoneDecisionAdmin">
       <button class="btn btn-danger btn-lg" onclick="valider('rejeté')">❌ Rejeter</button>
       <button class="btn btn-success btn-lg" onclick="valider('validé')">✅ Valider</button>
     </div>

@@ -4,22 +4,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passer l'épreuve</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/passer_epreuves.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
-  <nav class="navbar navbar-dark bg-primary px-3">
-    <span class="navbar-brand mb-0 h1">Épreuve en cours</span>
-  </nav>
+  <!-- Bandeau "Épreuve en cours" retiré à la demande du candidat/étudiant :
+       l'écran de démarrage se suffit à lui-même, sans navbar au-dessus -->
 
   <!-- Sas d'entrée : le candidat doit cliquer pour passer en plein écran avant de voir les questions -->
   <div id="ecran-demarrage" class="container mt-5 text-center d-none">
     <div class="card shadow-sm p-5">
-      <h4 class="mb-3">Prêt à commencer l'épreuve ?</h4>
-      <p class="text-muted">
+
+      <div class="icone-officielle">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l8 4v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-4z"></path>
+          <path d="M9 12l2 2 4-4"></path>
+        </svg>
+      </div>
+
+      <h4 class="mb-2">Prêt à commencer l'épreuve ?</h4>
+      <p class="text-muted mb-0">
         L'épreuve va s'ouvrir en <strong>mode plein écran</strong>.
         Ne quittez pas cette fenêtre pendant l'examen.
       </p>
+
+      <div class="bloc-regles">
+        <h6>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 9v4"></path>
+            <path d="M12 17h.01"></path>
+            <path d="M10.29 3.86l-8.18 14.18A2 2 0 0 0 3.82 21h16.36a2 2 0 0 0 1.71-2.96L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          </svg>
+          Interdictions strictes pendant l'épreuve
+        </h6>
+        <ul>
+          <li><span class="interdit-icone">✗</span> Il est <strong>interdit</strong> de changer d'onglet ou de réduire la fenêtre du navigateur</li>
+          <li><span class="interdit-icone">✗</span> Il est <strong>interdit</strong> de quitter le mode plein écran (touche Échap ou autre)</li>
+          <li><span class="interdit-icone">✗</span> Il est <strong>interdit</strong> de faire passer une autre application au premier plan</li>
+          <li><span class="interdit-icone">✗</span> Il est <strong>interdit</strong> de fermer ou recharger la page pendant l'épreuve</li>
+        </ul>
+        <div class="avertissement-final">
+          ⚠ Toute infraction à ces règles est détectée automatiquement et entraîne l'exclusion immédiate du candidat, avec une note de 0/20 à cette épreuve. Cette sanction est définitive : aucun retour en arrière ni réclamation ne sera possible.
+        </div>
+      </div>
+
       <button id="btn-commencer" class="btn btn-success btn-lg mt-3" onclick="commencerEpreuve()">
         Commencer l'épreuve
       </button>

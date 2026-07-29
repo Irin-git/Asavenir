@@ -105,13 +105,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// GET — Récupérer les documents d'une candidature (admin uniquement)
+// GET — Récupérer les documents d'une candidature (admin ET jury, pour la consultation du dossier)
 elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $user = verifierToken();
 
-    if ($user->role !== 'admin') {
+    // Élargi à jury en plus d'admin : le jury doit pouvoir consulter le dossier
+    // pour se forger un avis, sans toutefois pouvoir modifier quoi que ce soit ici (GET = lecture seule)
+    if (!in_array($user->role, ['admin', 'jury'])) {
         http_response_code(403);
-        echo json_encode(['message' => 'Réservé à l\'admin']);
+        echo json_encode(['message' => 'Réservé à l\'admin ou au jury']);
         exit;
     }
 

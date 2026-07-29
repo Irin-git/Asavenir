@@ -1,0 +1,224 @@
+/* ===============================
+   passer_epreuves.css — Page de passage d'épreuve
+   Style : sas d'accueil sombre & premium (dégradé bleu marine)
+           zone d'épreuve sobre et rassurante pendant l'examen
+   =============================== */
+
+:root {
+  --navy-950: #060b18;
+  --navy-900: #0b1730;
+  --navy-800: #122448;
+  --bleu-vif: #3b82f6;
+  --emeraude: #10b981;
+  --rouge-alerte: #ef4444;
+  --gris-fond: #f4f6f9;
+  --texte-clair: #e2e8f0;
+  --texte-attenue: #94a3b8;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* empêche les formes décoratives flottantes de créer une barre de défilement horizontale */
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================
+   ÉCRAN 1 : Sas de démarrage (fond sombre premium)
+   ============================================ */
+
+/* max-width: none + width: 100vw annulent la classe Bootstrap "container"
+   qui, sinon, limiterait le fond sombre à une largeur centrée au lieu du plein écran */
+#ecran-demarrage {
+  min-height: 100vh;
+  width: 100vw;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 3rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, var(--navy-800), var(--navy-950) 70%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Formes flottantes décoratives en fond de page */
+#ecran-demarrage::before,
+#ecran-demarrage::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(10px);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+#ecran-demarrage::before {
+  width: 260px;
+  height: 260px;
+  top: -80px;
+  left: -80px;
+  background: linear-gradient(135deg, var(--bleu-vif), transparent);
+  animation: flotter 8s ease-in-out infinite;
+}
+
+#ecran-demarrage::after {
+  width: 320px;
+  height: 320px;
+  bottom: -100px;
+  right: -100px;
+  background: linear-gradient(135deg, var(--emeraude), transparent);
+  animation: flotter 10s ease-in-out infinite reverse;
+}
+
+@keyframes flotter {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(20px) translateX(10px); }
+}
+
+#ecran-demarrage .card {
+  border: none;
+  border-radius: 24px;
+  max-width: 640px;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+  padding: 2.5rem !important;
+  color: var(--texte-clair);
+}
+
+#ecran-demarrage h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+
+#ecran-demarrage p.text-muted {
+  color: var(--texte-attenue) !important;
+}
+
+/* Icône ronde en haut de la carte, esprit "sceau officiel" */
+.icone-officielle {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1.25rem auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bleu-vif), var(--emeraude));
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
+}
+
+.icone-officielle svg {
+  width: 30px;
+  height: 30px;
+  stroke: white;
+}
+
+/* Bloc des règles / avertissements */
+.bloc-regles {
+  text-align: left;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.bloc-regles h6 {
+  color: #fca5a5;
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.bloc-regles h6 svg {
+  width: 18px;
+  height: 18px;
+  stroke: #fca5a5;
+}
+
+.bloc-regles ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--texte-clair);
+}
+
+.bloc-regles li {
+  margin-bottom: 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.bloc-regles li:last-child {
+  margin-bottom: 0;
+}
+
+.bloc-regles .interdit-icone {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.bloc-regles .avertissement-final {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(239, 68, 68, 0.25);
+  font-weight: 700;
+  color: #fecaca;
+  font-size: 0.9rem;
+}
+
+/* Bouton "Commencer l'épreuve" — INCHANGÉ comme demandé, on garde le style d'origine */
+#btn-commencer {
+  border-radius: 50px;
+  padding: 0.75rem 2.5rem;
+  font-weight: 600;
+}
+
+/* ============================================
+   ÉCRAN 2 : Zone d'épreuve (sobre, focus concentration)
+   ============================================ */
+
+#zone-epreuve {
+  background: var(--gris-fond);
+  min-height: 100vh;
+}
+
+#minuteur {
+  border: none;
+  border-radius: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+#questions-container .card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+#questions-container h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--navy-900);
+  font-weight: 700;
+}
+
+#btn-soumettre {
+  border-radius: 50px;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+}

@@ -2,6 +2,7 @@
 // jury.js — Espace de correction (rôle jury)
 // ===============================
 // Ce fichier permet à un membre du jury de :
+// 0. examiner les candidatures reçues et donner un avis consultatif (favorable/défavorable)
 // 1. choisir un concours puis une épreuve déjà approuvée
 // 2. corriger les copies une par une, de façon anonyme (juste un numéro de copie, pas de nom)
 
@@ -25,6 +26,87 @@ function showAlertJury(msg, type = 'danger') {
   document.getElementById('alertMsgJury').innerHTML =
     `<div class="alert alert-${type}">${msg}</div>`;
 }
+
+// Petite protection contre l'injection HTML dans les noms/titres affichés
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+// ============================================
+// ===== Candidatures à examiner (nouveau) =====
+// ============================================
+
+// Traduit la valeur technique de l'avis en badge lisible pour le jury
+function badgeAvis(avis) {
+  if (avis === 'favorable') return '<span class="badge bg-success">Favorable</span>';
+  if (avis === 'defavorable') return '<span class="badge bg-danger">Défavorable</span>';
+  return '<span class="badge bg-secondary">En attente</span>';
+}
+
+async function chargerCandidaturesJury() {
+  try {
+    const res = await fetch(`${API}/candidatures?all=1`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('tableauCandidaturesJury').innerHTML =
+        `<tr><td colspan="6" class="text-danger text-center py-3">${data.message || 'Erreur de chargement.'}</td></tr>`;
+      return;
+    }
+
+    if (!data.length) {
+      document.getElementById('tableauCandidaturesJury').innerHTML =
+        '<tr><td colspan="6" class="text-center text-muted py-4">Aucune candidature à examiner pour le moment.</td></tr>';
+      return;
+    }
+
+    document.getElementById('tableauCandidaturesJury').innerHTML = data.map(c => `
+      <tr>
+        <td>${c.id}</td>
+        <td>${escapeHtml(c.candidat_nom)}</td>
+        <td>${escapeHtml(c.concours_titre)}</td>
+        <td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
+        <td>${badgeAvis(c.avis_jury)}</td>
+        <td>
+          <a href="dossier.html?id=${c.id}&nom=${encodeURIComponent(c.candidat_nom)}"
+             target="_blank" class="btn btn-sm btn-outline-primary">👁️ Voir dossier</a>
+          <button class="btn btn-sm btn-success" onclick="donnerAvisCandidature(${c.id}, 'favorable')">✅ Favorable</button>
+          <button class="btn btn-sm btn-danger" onclick="donnerAvisCandidature(${c.id}, 'defavorable')">❌ Défavorable</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch {
+    document.getElementById('tableauCandidaturesJury').innerHTML =
+      '<tr><td colspan="6" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
+  }
+}
+
+// L'avis du jury est consultatif : il n'efface jamais le statut final, géré uniquement par l'admin
+async function donnerAvisCandidature(id, avis_jury) {
+  try {
+    const res = await fetch(`${API}/candidatures`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id, avis_jury })
+    });
+
+    if (res.ok) {
+      chargerCandidaturesJury();
+    } else {
+      alert('Erreur lors de l\'enregistrement de l\'avis');
+    }
+  } catch {
+    alert('Erreur réseau');
+  }
+}
+
+// ============================================
+// ===== Correction des copies (inchangé) =====
+// ============================================
 
 // ===== Chargement des concours =====
 async function chargerConcoursJury() {
@@ -197,4 +279,6 @@ async function validerCopieJury(candidature_id) {
   afficherCopieCourante();
 }
 
+// ===== Initialisation au chargement de la page =====
+chargerCandidaturesJury();
 chargerConcoursJury();

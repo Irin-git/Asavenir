@@ -42,11 +42,12 @@ if ($method === 'POST') {
     echo json_encode(["message" => "Candidature envoyée ✅", "candidature_id" => $candidature_id]);
 }
 
-// GET ALL — Admin voit toutes les candidatures
+// GET ALL — Admin voit toutes les candidatures, Jury voit celles en attente de décision
 elseif ($method === 'GET' && isset($_GET['all'])) {
     $user = verifierToken();
-    
-    if ($user->role !== 'admin') {
+
+    // Deux rôles autorisés désormais : admin (décision finale) et jury (avis consultatif)
+    if (!in_array($user->role, ['admin', 'jury'])) {
         http_response_code(403);
         echo json_encode(["message" => "Accès refusé"]);
         exit();
@@ -55,14 +56,22 @@ elseif ($method === 'GET' && isset($_GET['all'])) {
     $db = new Database();
     $conn = $db->connect();
 
-    $stmt = $conn->prepare("SELECT ca.id, ca.statut, ca.created_at,
+    $sql = "SELECT ca.id, ca.statut, ca.avis_jury, ca.created_at,
         u.nom AS candidat_nom,
         c.titre AS concours_titre
         FROM candidatures ca
         JOIN users u ON ca.user_id = u.id
-        JOIN concours c ON ca.concours_id = c.id
-        ORDER BY ca.created_at DESC");
+        JOIN concours c ON ca.concours_id = c.id";
 
+    // Le jury n'a besoin de voir que les candidatures pas encore tranchées par l'admin,
+    // pour ne pas encombrer sa liste avec des dossiers déjà clos
+    if ($user->role === 'jury') {
+        $sql .= " WHERE ca.statut = 'en_attente'";
+    }
+
+    $sql .= " ORDER BY ca.created_at DESC";
+
+    $stmt = $conn->prepare($sql);
     $stmt->execute();
     $candidatures = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -88,32 +97,70 @@ elseif ($method === 'GET') {
     echo json_encode($candidatures);
 }
 
-// PUT — Admin valide ou refuse une candidature
+// PUT — Deux usages distincts selon le rôle et le champ envoyé :
+//   - { id, statut }    -> décision finale, réservée à l'admin
+//   - { id, avis_jury } -> avis consultatif, réservé au jury
 elseif ($method === 'PUT') {
     $user = verifierToken();
 
-    if ($user->role !== 'admin') {
-        http_response_code(403);
-        echo json_encode(["message" => "Accès refusé"]);
-        exit();
-    }
-
-    // On vérifie que le statut envoyé fait bien partie des valeurs autorisées
-    // (évite qu'une valeur invalide se retrouve en base, ex: faute de frappe côté front)
-    $statutsValides = ['en_attente', 'validé', 'rejeté'];
-    if (empty($data['id']) || empty($data['statut']) || !in_array($data['statut'], $statutsValides)) {
+    if (empty($data['id'])) {
         http_response_code(400);
-        echo json_encode(["message" => "id ou statut invalide"]);
+        echo json_encode(["message" => "id manquant"]);
         exit();
     }
 
     $db = new Database();
     $conn = $db->connect();
 
-    $stmt = $conn->prepare("UPDATE candidatures SET statut = ? WHERE id = ?");
-    $stmt->execute([$data['statut'], $data['id']]);
+    // --- Cas 1 : l'admin change le statut final ---
+    if (isset($data['statut'])) {
+        if ($user->role !== 'admin') {
+            http_response_code(403);
+            echo json_encode(["message" => "Accès refusé : seul l'admin peut valider/rejeter une candidature"]);
+            exit();
+        }
 
-    echo json_encode(["message" => "Statut mis à jour ✅"]);
+        // On vérifie que le statut envoyé fait bien partie des valeurs autorisées
+        // (évite qu'une valeur invalide se retrouve en base, ex: faute de frappe côté front)
+        $statutsValides = ['en_attente', 'validé', 'rejeté'];
+        if (!in_array($data['statut'], $statutsValides)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Statut invalide"]);
+            exit();
+        }
+
+        $stmt = $conn->prepare("UPDATE candidatures SET statut = ? WHERE id = ?");
+        $stmt->execute([$data['statut'], $data['id']]);
+
+        echo json_encode(["message" => "Statut mis à jour ✅"]);
+        exit();
+    }
+
+    // --- Cas 2 : le jury donne son avis consultatif ---
+    if (isset($data['avis_jury'])) {
+        if ($user->role !== 'jury') {
+            http_response_code(403);
+            echo json_encode(["message" => "Accès refusé : seul le jury peut donner un avis"]);
+            exit();
+        }
+
+        $avisValides = ['en_attente', 'favorable', 'defavorable'];
+        if (!in_array($data['avis_jury'], $avisValides)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Avis invalide"]);
+            exit();
+        }
+
+        $stmt = $conn->prepare("UPDATE candidatures SET avis_jury = ? WHERE id = ?");
+        $stmt->execute([$data['avis_jury'], $data['id']]);
+
+        echo json_encode(["message" => "Avis enregistré ✅"]);
+        exit();
+    }
+
+    // Ni statut ni avis_jury envoyé -> requête incomplète
+    http_response_code(400);
+    echo json_encode(["message" => "Aucune donnée valide à mettre à jour (statut ou avis_jury attendu)"]);
 
 } else {
     http_response_code(405);
