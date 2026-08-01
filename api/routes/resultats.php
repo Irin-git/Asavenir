@@ -41,6 +41,18 @@ function recalculerClassement($conn, $concours_id) {
     }
 }
 
+// ⚠️ NOUVELLE FONCTION — vérifie qu'un jury est bien affecté à une épreuve précise
+// avant de le laisser lire ou noter les copies de celle-ci.
+// Retourne true si affecté, false sinon.
+function juryEstAffecteAEpreuve($conn, $jury_id, $epreuve_id) {
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) FROM jury_affectations_epreuve
+        WHERE jury_id = ? AND epreuve_id = ?
+    ");
+    $stmt->execute([$jury_id, $epreuve_id]);
+    return $stmt->fetchColumn() > 0;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $user = verifierToken();
 
@@ -62,6 +74,14 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     }
 
     $conn = (new Database())->connect();
+
+    // ⚠️ NOUVEAU — Vérification du cloisonnement par épreuve : un jury ne peut consulter
+    // que les copies des épreuves pour lesquelles il est explicitement affecté.
+    if (!juryEstAffecteAEpreuve($conn, $user->id, $epreuve_id)) {
+        http_response_code(403);
+        echo json_encode(["message" => "Vous n'êtes pas affecté à cette épreuve"]);
+        exit();
+    }
 
     // On ne renvoie JAMAIS le nom du candidat ici -> c'est ce qui garantit l'anonymat de la correction
     $stmt = $conn->prepare("
@@ -290,8 +310,9 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     $conn = (new Database())->connect();
 
     // Récupérer le barème max de la question liée à cette réponse, pour valider la note
+    // ⚠️ MODIFIÉ — on récupère aussi epreuve_id, nécessaire pour la vérification d'affectation ci-dessous
     $verif = $conn->prepare("
-        SELECT q.points AS bareme
+        SELECT q.points AS bareme, q.epreuve_id AS epreuve_id
         FROM reponses r
         INNER JOIN questions q ON r.question_id = q.id
         WHERE r.id = ?
@@ -302,6 +323,15 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     if (!$ligne) {
         http_response_code(404);
         echo json_encode(["message" => "Réponse introuvable"]);
+        exit();
+    }
+
+    // ⚠️ NOUVEAU — Vérification du cloisonnement par épreuve : même si le jury connaît
+    // un reponse_id par appel direct à l'API, il ne peut noter que les épreuves pour
+    // lesquelles il est explicitement affecté.
+    if (!juryEstAffecteAEpreuve($conn, $user->id, $ligne['epreuve_id'])) {
+        http_response_code(403);
+        echo json_encode(["message" => "Vous n'êtes pas affecté à cette épreuve"]);
         exit();
     }
 

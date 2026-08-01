@@ -24,6 +24,8 @@ if ($method === 'POST') {
     $concours_id = $_GET['concours_id'] ?? null;
     $en_attente = $_GET['en_attente'] ?? null;
     $mes_epreuves = $_GET['mes_epreuves'] ?? null;
+    // NOUVEAU : liste des concours pour lesquels LE JURY connecté a au moins une épreuve affectée
+    $mes_concours_jury = $_GET['mes_concours_jury'] ?? null;
 
     // Liste des épreuves auxquelles LE candidat connecté peut accéder (via ses candidatures validées)
     if ($mes_epreuves) {
@@ -43,6 +45,30 @@ if ($method === 'POST') {
         $sql = preg_replace('/\s+/', ' ', $sql);
 
         $stmt = $conn->prepare($sql);
+        $stmt->execute([$user->id]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit();
+    }
+
+    // NOUVEAU BLOC : concours où le JURY connecté a au moins une épreuve affectée
+    // Utilisé pour peupler le menu déroulant "Concours" côté correction de copies (jury.html),
+    // afin qu'il ne liste jamais un concours où le jury n'a de toute façon aucune épreuve à corriger.
+    if ($mes_concours_jury) {
+        if ($user->role !== 'jury') {
+            http_response_code(403);
+            echo json_encode(["message" => "Accès refusé : réservé aux membres du jury"]);
+            exit();
+        }
+
+        // 🔒 jury_id vient uniquement du token décodé, jamais d'un paramètre client
+        $stmt = $conn->prepare("
+            SELECT DISTINCT c.id, c.titre
+            FROM concours c
+            JOIN epreuves e ON e.concours_id = c.id
+            JOIN jury_affectations_epreuve jae ON jae.epreuve_id = e.id
+            WHERE jae.jury_id = ?
+            ORDER BY c.titre ASC
+        ");
         $stmt->execute([$user->id]);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit();
@@ -75,6 +101,25 @@ if ($method === 'POST') {
     if (!$concours_id) {
         http_response_code(400);
         echo json_encode(["message" => "concours_id manquant"]);
+        exit();
+    }
+
+    // ===== Étape 2 du cloisonnement jury : filtrage par épreuve précise =====
+    // Un jury qui demande les épreuves d'un concours ne doit voir QUE celles
+    // pour lesquelles il est explicitement désigné (table jury_affectations_epreuve),
+    // même s'il est par ailleurs affecté au concours entier pour les dossiers.
+    // L'admin, lui, continue de tout voir sans restriction (gestion globale).
+    if ($user->role === 'jury') {
+        $stmt = $conn->prepare("
+            SELECT e.*
+            FROM epreuves e
+            JOIN jury_affectations_epreuve jae ON jae.epreuve_id = e.id
+            WHERE e.concours_id = ?
+            AND jae.jury_id = ?
+            ORDER BY e.date_epreuve
+        ");
+        $stmt->execute([$concours_id, $user->id]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit();
     }
 

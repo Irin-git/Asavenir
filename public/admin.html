@@ -66,6 +66,11 @@
             Gestion des épreuves
           </a>
 
+          <a href="#" class="sidebar-link" data-color="danger" onclick="afficherSection('affectations')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M13 13l4 4m0-4l-4 4"/></svg></span>
+            Affectations jury
+          </a>
+
           <a href="#" class="sidebar-link" data-color="teal" onclick="afficherSection('creer_sujet')">
             <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
             Créer un sujet
@@ -424,6 +429,82 @@
           </div>
         </div>
         <!-- fin section-creer_sujet -->
+
+        <!-- ===== Affectations jury (examen des dossiers) ===== -->
+        <div id="section-affectations" style="display:none;">
+          <p class="section-title">Affectations jury — Examen des dossiers de candidature</p>
+
+          <div class="form-card mb-4">
+            <label class="form-label fw-semibold">Concours</label>
+            <select class="form-select" id="selectConcoursAffectation" onchange="chargerJurysAffectesAffectation()">
+              <option value="">Chargement...</option>
+            </select>
+          </div>
+
+          <div id="zoneAffectation" style="display:none;">
+            <div class="form-card mb-4">
+              <p class="fw-semibold mb-3">Affecter un jury à ce concours</p>
+              <div id="alertAffectation"></div>
+              <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label fw-semibold">Choisir un jury</label>
+                  <select class="form-select" id="selectJuryAffectation">
+                    <option value="">Chargement...</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <button class="btn-admin btn w-100" onclick="affecterJury()">Affecter</button>
+                </div>
+              </div>
+            </div>
+
+             <div class="form-card">
+              <p class="fw-semibold mb-3">Jurys actuellement affectés</p>
+              <div id="listeJurysAffectes">
+                <p class="text-muted text-center py-3">Chargement...</p>
+              </div>
+            </div>
+          </div>
+ 
+          <hr class="my-4" />
+ 
+          <!-- ⚠️ NOUVEAU — Correction des copies (cloisonnement par épreuve) -->
+          <p class="section-title" style="font-size:16px;">Correction des copies (par épreuve)</p>
+ 
+          <div class="form-card mb-4" id="zoneSelectEpreuveAffectation" style="display:none;">
+            <label class="form-label fw-semibold">Épreuve de ce concours</label>
+            <select class="form-select" id="selectEpreuveAffectation" onchange="chargerJurysAffectesAffectationEpreuve()">
+              <option value="">-- Choisir une épreuve --</option>
+            </select>
+          </div>
+ 
+          <div id="zoneAffectationEpreuve" style="display:none;">
+            <div class="form-card mb-4">
+              <p class="fw-semibold mb-3">Affecter un jury à cette épreuve</p>
+              <div id="alertAffectationEpreuve"></div>
+              <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label fw-semibold">Choisir un jury</label>
+                  <select class="form-select" id="selectJuryAffectationEpreuve">
+                    <option value="">Chargement...</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <button class="btn-admin btn w-100" onclick="affecterJuryEpreuve()">Affecter</button>
+                </div>
+              </div>
+            </div>
+ 
+            <div class="form-card">
+              <p class="fw-semibold mb-3">Jurys actuellement affectés à cette épreuve</p>
+              <div id="listeJurysAffectesEpreuve">
+                <p class="text-muted text-center py-3">Chargement...</p>
+              </div>
+            </div>
+          </div>
+ 
+        </div>
+        <!-- fin section-affectations -->
 
       </div>
       <!-- fin col-md-10 -->

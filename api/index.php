@@ -44,6 +44,12 @@
         case 'resultats':
             require 'routes/resultats.php';
             break;
+        case 'affectations':
+            require 'routes/affectations.php';
+            break;
+        case 'affectations_epreuve':
+            require 'routes/affectations_epreuve.php';
+            break;        
         default:
             http_response_code(404);
             echo json_encode(["message" => "Route introuvable"]);

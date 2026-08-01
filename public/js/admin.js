@@ -43,8 +43,9 @@ function afficherSection(nom) {
   if (nom === 'candidatures') chargerCandidatures();
   if (nom === 'dashboard') chargerStats();
   if (nom === 'creer_sujet') chargerConcoursSujet();
+  if (nom === 'affectations') chargerConcoursAffectation();
 
-  ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation', 'creer_sujet', 'resultats']
+  ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation', 'creer_sujet', 'resultats', 'affectations']
     .forEach(s => {
       document.getElementById(`section-${s}`).style.display = s === nom ? '' : 'none';
     });
@@ -74,9 +75,6 @@ function afficherListeConcoursDashboard(concours) {
     return;
   }
 
-  // On utilise data-id / data-titre + un seul écouteur (event delegation)
-  // au lieu d'un onclick="...${titre}..." pour éviter qu'un titre contenant
-  // des guillemets casse le HTML ou permette d'injecter du JS.
   container.innerHTML = concours.map(c => `
     <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2 concours-dashboard-item"
          style="cursor:pointer;" data-id="${c.id}" data-titre="${escapeHtml(c.titre)}">
@@ -113,11 +111,9 @@ async function voirStatsConcours(id, titre) {
     document.getElementById('statTauxReussite').textContent = s.taux_reussite;
     document.getElementById('statEnAttente').textContent = s.en_attente;
 
-    // Détruire les anciens graphiques avant d'en recréer (évite les doublons)
     if (chartMentionsInstance) chartMentionsInstance.destroy();
     if (chartTauxInstance) chartTauxInstance.destroy();
 
-    // Couleurs harmonisées avec la palette premium (émeraude / ambre / rouge)
     chartMentionsInstance = new Chart(document.getElementById('chartMentions'), {
       type: 'doughnut',
       data: {
@@ -198,8 +194,6 @@ async function creerConcours() {
     return;
   }
 
-  // On vérifie que la date de fin n'est pas avant la date de début
-  // (bug logique fréquent qui passait avant, l'API ne le vérifiait pas forcément côté front)
   if (new Date(dateFin) < new Date(dateDebut)) {
     document.getElementById('alertAdmin').innerHTML =
       '<div class="alert alert-warning">La date de fin ne peut pas être avant la date de début.</div>';
@@ -242,8 +236,6 @@ async function creerUtilisateur() {
     return;
   }
 
-  // Petit contrôle de robustesse du mot de passe côté front (le hachage
-  // et la vraie validation restent obligatoires côté serveur)
   if (password.length < 6) {
     document.getElementById('alertUser').innerHTML =
       '<div class="alert alert-warning">Le mot de passe doit faire au moins 6 caractères.</div>';
@@ -358,7 +350,6 @@ async function chargerEpreuvesAttente() {
       </div>
     `).join('');
 
-    // Event delegation au lieu d'un onclick avec le titre injecté en dur
     container.querySelectorAll('.btn-modifier-epreuve').forEach(btn => {
       btn.addEventListener('click', () => ouvrirModificationEpreuve(btn.dataset.id, btn.dataset.titre));
     });
@@ -406,7 +397,6 @@ async function voirQuestions(epreuve_id) {
 
     zone.innerHTML = questions.map((q, i) => {
       let choix = [];
-      // JSON.parse peut planter si la donnée est corrompue -> on protège
       try { choix = JSON.parse(q.choix || '[]').filter(c => c.texte); } catch { choix = []; }
 
       const choixHtml = choix.map(c => `
@@ -591,7 +581,6 @@ async function ajouterQuestionSujet() {
 
   if (!enonce) { showAlertSujet("L'énoncé est obligatoire."); return; }
 
-  // Garde-fou : sans épreuve active, l'ajout de question n'a pas de sens
   if (!epreuveIdSujet) { showAlertSujet("Aucune épreuve sélectionnée."); return; }
 
   const formData = new FormData();
@@ -777,6 +766,290 @@ function genererAccordeonResultats(candidats) {
 
   html += '</div>';
   return html;
+}
+
+// ===== Affectations jury (examen des dossiers de candidature — par CONCOURS) =====
+
+async function chargerConcoursAffectation() {
+  const select = document.getElementById('selectConcoursAffectation');
+  try {
+    const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    select.innerHTML = '<option value="">-- Choisir un concours --</option>';
+    data.forEach(c => { select.innerHTML += `<option value="${c.id}">${escapeHtml(c.titre)}</option>`; });
+  } catch {
+    select.innerHTML = '<option value="">Erreur de chargement</option>';
+  }
+
+  document.getElementById('zoneAffectation').style.display = 'none';
+  document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none'; // ⚠️ NOUVEAU
+  document.getElementById('zoneAffectationEpreuve').style.display = 'none'; // ⚠️ NOUVEAU
+}
+
+async function chargerJurysAffectesAffectation() {
+  const concoursId = document.getElementById('selectConcoursAffectation').value;
+  const zone = document.getElementById('zoneAffectation');
+
+  if (!concoursId) {
+    zone.style.display = 'none';
+    document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none'; // ⚠️ NOUVEAU
+    document.getElementById('zoneAffectationEpreuve').style.display = 'none'; // ⚠️ NOUVEAU
+    return;
+  }
+  zone.style.display = '';
+
+  await Promise.all([
+    afficherListeJurysAffectes(concoursId),
+    remplirSelectJurysDisponibles(),
+    chargerEpreuvesAffectationEpreuve(concoursId) // ⚠️ NOUVEAU — charge aussi les épreuves de ce concours
+  ]);
+}
+
+async function afficherListeJurysAffectes(concoursId) {
+  const container = document.getElementById('listeJurysAffectes');
+  container.innerHTML = '<p class="text-muted text-center py-3">Chargement...</p>';
+
+  try {
+    const res = await fetch(`${API}/affectations?concours_id=${concoursId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      container.innerHTML = '<p class="text-muted text-center py-3">Aucun jury affecté à ce concours pour le moment.</p>';
+      return;
+    }
+
+    container.innerHTML = data.map(a => `
+      <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+        <div>
+          <strong>${escapeHtml(a.jury_nom)}</strong>
+          <span class="text-muted ms-2" style="font-size:12px;">${escapeHtml(a.jury_email)}</span>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="retirerAffectation(${a.id})">Retirer</button>
+      </div>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p class="text-danger text-center py-3">Erreur de chargement.</p>';
+  }
+}
+
+async function remplirSelectJurysDisponibles() {
+  const select = document.getElementById('selectJuryAffectation');
+  try {
+    const res = await fetch(`${API}/auth?role=jury`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      select.innerHTML = '<option value="">Aucun compte jury créé</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- Choisir un jury --</option>';
+    data.forEach(j => { select.innerHTML += `<option value="${j.id}">${escapeHtml(j.nom)} (${escapeHtml(j.email)})</option>`; });
+  } catch {
+    select.innerHTML = '<option value="">Erreur de chargement</option>';
+  }
+}
+
+async function affecterJury() {
+  const concours_id = document.getElementById('selectConcoursAffectation').value;
+  const jury_id = document.getElementById('selectJuryAffectation').value;
+
+  if (!jury_id) {
+    document.getElementById('alertAffectation').innerHTML = '<div class="alert alert-warning">Choisis un jury.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/affectations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ jury_id, concours_id })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('alertAffectation').innerHTML = '<div class="alert alert-success">Jury affecté ✅</div>';
+      afficherListeJurysAffectes(concours_id);
+    } else {
+      document.getElementById('alertAffectation').innerHTML = `<div class="alert alert-danger">${escapeHtml(data.message)}</div>`;
+    }
+  } catch {
+    document.getElementById('alertAffectation').innerHTML = '<div class="alert alert-danger">Erreur réseau.</div>';
+  }
+}
+
+async function retirerAffectation(id) {
+  if (!confirm("Retirer ce jury de l'examen des dossiers de ce concours ?")) return;
+
+  const concoursId = document.getElementById('selectConcoursAffectation').value;
+
+  try {
+    const res = await fetch(`${API}/affectations`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+
+    if (res.ok) {
+      afficherListeJurysAffectes(concoursId);
+    } else {
+      alert("Erreur lors du retrait de l'affectation");
+    }
+  } catch {
+    alert('Erreur réseau');
+  }
+}
+
+// ==========================================================================
+// ⚠️ NOUVEAU BLOC — Affectations jury (correction des copies — par ÉPREUVE)
+// Même logique que le bloc ci-dessus, mais un cran plus précis : on choisit
+// d'abord un concours, puis une épreuve précise DANS ce concours, avant de
+// pouvoir y affecter un jury.
+// ==========================================================================
+
+// Se déclenche automatiquement dès qu'un concours est choisi dans le select
+// principal (#selectConcoursAffectation) : charge la liste de ses épreuves
+// pour le bloc "Correction des copies" juste en dessous.
+async function chargerEpreuvesAffectationEpreuve(concoursId) {
+  const zoneSelect = document.getElementById('zoneSelectEpreuveAffectation');
+  const selectEpreuve = document.getElementById('selectEpreuveAffectation');
+
+  document.getElementById('zoneAffectationEpreuve').style.display = 'none';
+  selectEpreuve.value = ''; // on repart d'une sélection vide à chaque changement de concours
+
+  if (!concoursId) {
+    zoneSelect.style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/epreuves?concours_id=${concoursId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      selectEpreuve.innerHTML = '<option value="">Aucune épreuve pour ce concours</option>';
+    } else {
+      selectEpreuve.innerHTML = '<option value="">-- Choisir une épreuve --</option>';
+      data.forEach(e => { selectEpreuve.innerHTML += `<option value="${e.id}">${escapeHtml(e.titre)}</option>`; });
+    }
+    zoneSelect.style.display = '';
+  } catch {
+    selectEpreuve.innerHTML = '<option value="">Erreur de chargement</option>';
+    zoneSelect.style.display = '';
+  }
+}
+
+// Se déclenche quand on choisit une épreuve : charge les jurys affectés + la liste des jurys disponibles
+async function chargerJurysAffectesAffectationEpreuve() {
+  const epreuveId = document.getElementById('selectEpreuveAffectation').value;
+  const zone = document.getElementById('zoneAffectationEpreuve');
+
+  if (!epreuveId) {
+    zone.style.display = 'none';
+    return;
+  }
+  zone.style.display = '';
+
+  await Promise.all([
+    afficherListeJurysAffectesEpreuve(epreuveId),
+    remplirSelectJurysDisponiblesEpreuve()
+  ]);
+}
+
+async function afficherListeJurysAffectesEpreuve(epreuveId) {
+  const container = document.getElementById('listeJurysAffectesEpreuve');
+  container.innerHTML = '<p class="text-muted text-center py-3">Chargement...</p>';
+
+  try {
+    const res = await fetch(`${API}/affectations_epreuve?epreuve_id=${epreuveId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      container.innerHTML = '<p class="text-muted text-center py-3">Aucun jury affecté à cette épreuve pour le moment.</p>';
+      return;
+    }
+
+    container.innerHTML = data.map(a => `
+      <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+        <div>
+          <strong>${escapeHtml(a.jury_nom)}</strong>
+          <span class="text-muted ms-2" style="font-size:12px;">${escapeHtml(a.jury_email)}</span>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="retirerAffectationEpreuve(${a.id})">Retirer</button>
+      </div>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p class="text-danger text-center py-3">Erreur de chargement.</p>';
+  }
+}
+
+async function remplirSelectJurysDisponiblesEpreuve() {
+  const select = document.getElementById('selectJuryAffectationEpreuve');
+  try {
+    const res = await fetch(`${API}/auth?role=jury`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      select.innerHTML = '<option value="">Aucun compte jury créé</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- Choisir un jury --</option>';
+    data.forEach(j => { select.innerHTML += `<option value="${j.id}">${escapeHtml(j.nom)} (${escapeHtml(j.email)})</option>`; });
+  } catch {
+    select.innerHTML = '<option value="">Erreur de chargement</option>';
+  }
+}
+
+async function affecterJuryEpreuve() {
+  const epreuve_id = document.getElementById('selectEpreuveAffectation').value;
+  const jury_id = document.getElementById('selectJuryAffectationEpreuve').value;
+
+  if (!jury_id) {
+    document.getElementById('alertAffectationEpreuve').innerHTML = '<div class="alert alert-warning">Choisis un jury.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/affectations_epreuve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ jury_id, epreuve_id })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('alertAffectationEpreuve').innerHTML = '<div class="alert alert-success">Jury affecté ✅</div>';
+      afficherListeJurysAffectesEpreuve(epreuve_id);
+    } else {
+      document.getElementById('alertAffectationEpreuve').innerHTML = `<div class="alert alert-danger">${escapeHtml(data.message)}</div>`;
+    }
+  } catch {
+    document.getElementById('alertAffectationEpreuve').innerHTML = '<div class="alert alert-danger">Erreur réseau.</div>';
+  }
+}
+
+async function retirerAffectationEpreuve(id) {
+  if (!confirm("Retirer ce jury de la correction de cette épreuve ?")) return;
+
+  const epreuveId = document.getElementById('selectEpreuveAffectation').value;
+
+  try {
+    const res = await fetch(`${API}/affectations_epreuve`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+
+    if (res.ok) {
+      afficherListeJurysAffectesEpreuve(epreuveId);
+    } else {
+      alert("Erreur lors du retrait de l'affectation");
+    }
+  } catch {
+    alert('Erreur réseau');
+  }
 }
 
 // ===== Démarrage =====

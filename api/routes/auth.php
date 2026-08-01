@@ -233,6 +233,41 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'res
     echo json_encode(["message" => "Mot de passe réinitialisé avec succès ✅"]);
 }
 
+// === NOUVEAU : GET — Lister les utilisateurs (réservé à l'admin) ===
+// Utilisé notamment pour peupler le sélecteur "Choisir un jury" de l'écran
+// d'affectation aux concours. Filtre optionnel : ?role=jury / ?role=admin / ?role=candidat
+elseif ($method === 'GET') {
+    require_once __DIR__ . '/../middleware/auth.php';
+    $user = verifierToken();
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès refusé : réservé aux administrateurs"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    // On ne renvoie jamais le mot de passe (même haché) dans cette liste
+    $sql = "SELECT id, nom, email, role FROM users";
+    $params = [];
+
+    $rolesValides = ['admin', 'jury', 'candidat'];
+    if (!empty($_GET['role']) && in_array($_GET['role'], $rolesValides)) {
+        $sql .= " WHERE role = ?";
+        $params[] = $_GET['role'];
+    }
+
+    $sql .= " ORDER BY nom ASC";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode($users);
+}
+
 else {
     http_response_code(400);
     echo json_encode(["message" => "Action non reconnue"]);

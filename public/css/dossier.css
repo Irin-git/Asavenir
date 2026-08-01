@@ -1,0 +1,254 @@
+/* =========================================================
+   dossier.css — Dossier Candidat (Admin + Jury)
+   Même système que admin.css : navy + émeraude dominant
+   Accent signature de cette page : "tampon" de validation animé
+   ========================================================= */
+
+:root {
+  --navy: #0A1F44;
+  --navy-deep: #051029;
+  --blue-vivid: #2F6FED;
+  --emerald: #00C896;
+  --emerald-dark: #00A67D;
+  --emerald-soft: #E3FBF3;
+  --beige: #F0C48A;
+  --beige-dark: #D9A85F;
+  --white: #FFFFFF;
+  --ink: #10203F;
+  --ink-soft: #5B6B8C;
+  --border: #E4E9F2;
+  --danger: #FF5C5C;
+  --danger-soft: #FFEDED;
+  --warning: #F0B94D;
+  --radius-lg: 22px;
+  --radius-md: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: #F6F9FC;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6, .fw-bold {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* ===== Barre du haut (identique à admin.css) ===== */
+.navbar {
+  background: linear-gradient(100deg, var(--navy) 0%, var(--navy-deep) 100%);
+  box-shadow: 0 4px 20px rgba(10, 31, 68, 0.15);
+  padding: 1rem 1.6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-badge { display: flex; align-items: center; gap: 10px; }
+
+.brand-badge .glyph {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue-vivid), var(--emerald));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; color: var(--navy-deep); font-size: 16px;
+  flex-shrink: 0;
+}
+
+.brand-badge .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-badge .brand-text .name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600; font-size: 1.02rem; color: var(--white); letter-spacing: 0.01em;
+}
+.brand-badge .brand-text .tag {
+  font-size: 10.5px; color: var(--beige); text-transform: uppercase;
+  letter-spacing: 0.08em; font-weight: 600;
+}
+
+.btn-close-dossier {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--white);
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 0.45rem;
+  transition: all 0.25s ease;
+}
+.btn-close-dossier:hover { background: var(--danger); border-color: var(--danger); transform: translateY(-1px); }
+
+/* ===== Hero (même logique que dashboard-hero d'admin) ===== */
+.dossier-hero {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--navy) 0%, #0C2A5C 55%, var(--navy-deep) 100%);
+  padding: 2rem 2.2rem;
+  margin: 1.8rem auto 1.6rem;
+  max-width: 820px;
+  overflow: hidden;
+  color: var(--white);
+}
+.dossier-hero .hero-shape { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.35; pointer-events: none; }
+.dossier-hero .shape-1 { width: 150px; height: 150px; background: radial-gradient(circle, var(--emerald), transparent 70%); top: -50px; right: 40px; animation: float-a 7s ease-in-out infinite; }
+.dossier-hero .shape-2 { width: 100px; height: 100px; background: radial-gradient(circle, var(--beige), transparent 70%); bottom: -30px; right: 200px; animation: float-b 9s ease-in-out infinite; }
+@keyframes float-a { 0%,100% { transform: translate(0,0);} 50% { transform: translate(-14px,18px);} }
+@keyframes float-b { 0%,100% { transform: translate(0,0);} 50% { transform: translate(12px,-16px);} }
+
+.dossier-hero .eyebrow {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  color: var(--emerald); margin-bottom: 0.5rem;
+}
+.dossier-hero h2 { position: relative; font-size: 1.4rem; font-weight: 600; margin: 0 0 0.3rem; }
+.dossier-hero p { position: relative; color: #AFC0E0; font-size: 0.88rem; margin: 0; max-width: 480px; }
+
+/* ===== Container ===== */
+.container-dossier { max-width: 820px; margin: 0 auto; padding: 0 1.5rem 3rem; position: relative; }
+
+/* ===== Cards ===== */
+.form-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 1.6rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(10, 31, 68, 0.05);
+  margin-bottom: 1.4rem;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: card-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.form-card:nth-of-type(1) { animation-delay: 0.05s; }
+.form-card:nth-of-type(2) { animation-delay: 0.15s; }
+@keyframes card-rise { to { opacity: 1; transform: translateY(0); } }
+
+.card-header-dossier {
+  display: flex; align-items: center; gap: 0.7rem;
+  font-weight: 700; color: var(--navy);
+  margin-bottom: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.card-header-dossier .icon-box {
+  width: 34px; height: 34px; min-width: 34px;
+  border-radius: 10px; background: var(--navy);
+  display: flex; align-items: center; justify-content: center; color: var(--white);
+}
+.card-header-dossier .icon-box svg { width: 17px; height: 17px; }
+
+.candidat-meta { color: var(--ink-soft); font-size: 0.85rem; }
+
+/* ===== Documents ===== */
+.doc-item {
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid var(--border);
+  background: #FAFBFD;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.7rem;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-10px);
+  animation: doc-in 0.4s ease forwards;
+}
+.doc-item:nth-child(1) { animation-delay: 0.05s; }
+.doc-item:nth-child(2) { animation-delay: 0.12s; }
+.doc-item:nth-child(3) { animation-delay: 0.19s; }
+.doc-item:nth-child(4) { animation-delay: 0.26s; }
+.doc-item:nth-child(5) { animation-delay: 0.33s; }
+@keyframes doc-in { to { opacity: 1; transform: translateX(0); } }
+
+.doc-item::after {
+  content: '';
+  position: absolute; top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(0,200,150,0.12), transparent);
+  transform: skewX(-15deg);
+  transition: left 0.6s ease;
+}
+.doc-item:hover::after { left: 130%; }
+.doc-item:hover { border-color: var(--emerald); background: var(--emerald-soft); transform: translateX(3px); }
+
+.doc-left { display: flex; align-items: center; gap: 0.8rem; }
+.doc-icon {
+  width: 38px; height: 38px; min-width: 38px;
+  border-radius: 10px; background: var(--white); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; color: var(--blue-vivid);
+}
+.doc-icon svg { width: 18px; height: 18px; }
+.doc-name { font-weight: 600; font-size: 0.92rem; color: var(--ink); }
+.doc-filename { color: var(--ink-soft); font-size: 0.78rem; margin-top: 1px; }
+
+.btn-doc-open {
+  background: var(--navy);
+  color: var(--white);
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.05rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 0.4rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.btn-doc-open svg { width: 14px; height: 14px; }
+.btn-doc-open:hover { background: var(--emerald-dark); color: var(--white); transform: scale(1.04); }
+
+.text-muted-center { color: var(--ink-soft); text-align: center; padding: 1.6rem 0; font-size: 0.9rem; }
+
+/* ===== Zone décision (admin uniquement) — signature animation "tampon" ===== */
+.zone-decision {
+  display: flex; gap: 1rem; justify-content: flex-end;
+  opacity: 0; transform: translateY(10px);
+  animation: card-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards;
+}
+
+.btn-decision {
+  border: none; border-radius: var(--radius-md);
+  padding: 0.85rem 1.7rem; font-weight: 700; font-size: 0.92rem;
+  display: flex; align-items: center; gap: 0.55rem;
+  transition: transform 0.15s ease, box-shadow 0.25s ease;
+  position: relative;
+}
+
+.btn-reject {
+  background: var(--white); color: var(--danger);
+  border: 1.5px solid var(--danger);
+}
+.btn-reject:hover { background: var(--danger-soft); transform: translateY(-2px); }
+
+.btn-validate {
+  background: linear-gradient(90deg, var(--emerald), var(--emerald-dark));
+  color: var(--white);
+  box-shadow: 0 8px 18px rgba(0, 200, 150, 0.25);
+}
+.btn-validate:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 12px 26px rgba(0, 166, 125, 0.35);
+}
+/* Petit tampon qui "s'imprime" au clic : on relance l'anim via classe .stamped ajoutée en JS-optionnel,
+   mais le hover suffit à donner vie au bouton sans toucher à la logique */
+.btn-validate:active { transform: scale(0.96) rotate(-1deg); }
+.btn-reject:active { transform: scale(0.96) rotate(1deg); }
+
+/* ===== Alerte ===== */
+.alert-dossier {
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 1.1rem;
+  display: flex; align-items: center; gap: 0.6rem;
+  animation: card-rise 0.35s ease forwards;
+}
+.alert-success-d { background: var(--emerald-soft); color: var(--emerald-dark); }
+.alert-warning-d { background: #FFF6E5; color: #92660F; }
+.alert-danger-d { background: var(--danger-soft); color: #991B1B; }
