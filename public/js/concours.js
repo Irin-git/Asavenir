@@ -5,6 +5,10 @@ const user = JSON.parse(localStorage.getItem('user') || '{}');
 // Pour éviter le bug qui empêchait l'upload des documents de fonctionner
 let candidatureActuelle = null;
 
+// ⚠️ NOUVEAU — mémorise l'ID de l'intervalle de polling des notifications,
+// pour pouvoir l'arrêter proprement si jamais on en a besoin (ex: déconnexion)
+let intervalNotifications = null;
+
 // Sécurité : redirige si non connecté
 if (!token) {
   window.location.href = 'login.html';
@@ -24,6 +28,7 @@ function escapeHtml(str) {
 }
 
 function deconnexion() {
+  if (intervalNotifications) clearInterval(intervalNotifications);
   localStorage.clear();
   window.location.href = 'login.html';
 }
@@ -205,5 +210,110 @@ async function envoyerDocuments() {
   }
 }
 
+// ⚠️ NOUVEAU — révèle le bouton "Mes résultats" dans la navbar uniquement si
+// au moins un concours a un résultat publié ET disponible pour ce candidat.
+async function verifierResultatsDisponibles() {
+  try {
+    const res = await fetch(`${API}/resultats?mes_resultats=1`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok || !Array.isArray(data)) return;
+
+    const auMoinsUnDisponible = data.some(item => item.resultat_disponible);
+    if (auMoinsUnDisponible) {
+      document.getElementById('btnMesResultats').style.display = '';
+    }
+  } catch {
+    // Si l'appel échoue, on laisse simplement le bouton caché — pas bloquant
+  }
+}
+
+// ==========================================================================
+// ⚠️ NOUVEAU — Notifications (cloche + panneau + polling)
+// ==========================================================================
+
+// Ouvre/ferme le panneau déroulant. Rafraîchit la liste à chaque ouverture,
+// pour être sûr d'avoir les toutes dernières notifications sans attendre le polling.
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  const estOuvert = panel.classList.toggle('open');
+  if (estOuvert) chargerNotifications();
+}
+
+// Va chercher les notifications côté serveur (route validée à l'étape 2) et met
+// à jour à la fois le badge de compteur et le contenu du panneau.
+async function chargerNotifications() {
+  try {
+    const res = await fetch(`${API}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const notifications = await res.json();
+
+    if (!res.ok || !Array.isArray(notifications)) return;
+
+    afficherBadgeNotif(notifications);
+    afficherListeNotif(notifications);
+  } catch {
+    // Silencieux : le polling réessaiera automatiquement au prochain passage
+  }
+}
+
+function afficherBadgeNotif(notifications) {
+  const badge = document.getElementById('notifBadge');
+  const nonLues = notifications.filter(n => n.lu == 0).length;
+
+  if (nonLues > 0) {
+    badge.textContent = nonLues > 9 ? '9+' : nonLues;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function afficherListeNotif(notifications) {
+  const container = document.getElementById('notifListe');
+
+  if (!notifications.length) {
+    container.innerHTML = '<p class="notif-empty">Aucune notification pour le moment.</p>';
+    return;
+  }
+
+  container.innerHTML = notifications.map(n => `
+    <div class="notif-item ${n.lu == 0 ? 'non-lue' : ''} notif-type-${escapeHtml(n.type)}"
+         onclick="clicNotif(${n.id}, ${n.lien ? `'${escapeHtml(n.lien)}'` : 'null'})">
+      <div class="notif-item-titre">
+        <span class="notif-dot"></span>
+        ${escapeHtml(n.titre)}
+      </div>
+      <div class="notif-item-message">${escapeHtml(n.message)}</div>
+      <div class="notif-item-date">${new Date(n.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+    </div>
+  `).join('');
+}
+
+// Marque la notification comme lue, puis redirige vers son lien si elle en a un
+async function clicNotif(id, lien) {
+  try {
+    await fetch(`${API}/notifications`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+  } catch {
+    // Même si la mise à jour échoue, on laisse le candidat suivre le lien
+  }
+
+  chargerNotifications();
+  if (lien) window.location.href = lien;
+}
+
+// Démarre le polling : vérifie les nouvelles notifications toutes les 25 secondes
+function demarrerPollingNotifications() {
+  chargerNotifications();
+  intervalNotifications = setInterval(chargerNotifications, 25000);
+}
+
 chargerConcours();
 chargerCandidatures();
+verifierResultatsDisponibles();
+demarrerPollingNotifications();

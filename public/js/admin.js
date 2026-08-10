@@ -7,9 +7,11 @@ let chartTauxInstance = null;
 let epreuveIdSujet = null;
 let ordreAutoSujet = 1;
 
+// mémorise le concours actuellement ouvert dans le dashboard,
+// pour que le bouton "Voir les résultats de ce concours" sache où aller.
+let concoursActuelDashboard = null;
+
 // ===== Sécurité : on bloque tout de suite si ce n'est pas un admin =====
-// Le "throw" est important : sans lui, le reste du script (tout en bas,
-// l'appel à chargerStats()) continuait à s'exécuter même après la redirection.
 if (!token || user.role !== 'admin') {
   alert('Accès refusé. Vous devez être administrateur.');
   window.location.href = 'login.html';
@@ -18,9 +20,7 @@ if (!token || user.role !== 'admin') {
 
 document.getElementById('nomAdmin').textContent = `👤 ${user.nom || 'Admin'}`;
 
-// Anti-XSS : toute donnée qui vient de la base et qu'on injecte en innerHTML
-// doit passer par cette fonction avant d'être affichée. Sinon un titre de
-// concours du style <img src=x onerror=...> peut exécuter du JS.
+// Anti-XSS
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -44,8 +44,9 @@ function afficherSection(nom) {
   if (nom === 'dashboard') chargerStats();
   if (nom === 'creer_sujet') chargerConcoursSujet();
   if (nom === 'affectations') chargerConcoursAffectation();
+  if (nom === 'notifications') chargerCandidatsNotif();
 
-  ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation', 'creer_sujet', 'resultats', 'affectations']
+  ['dashboard', 'creer', 'liste', 'candidatures', 'utilisateurs', 'validation', 'creer_sujet', 'resultats', 'affectations', 'notifications']
     .forEach(s => {
       document.getElementById(`section-${s}`).style.display = s === nom ? '' : 'none';
     });
@@ -61,7 +62,6 @@ async function chargerStats() {
     document.getElementById('statOuvert').textContent = concours.filter(c => c.statut === 'ouvert').length;
     afficherListeConcoursDashboard(concours);
   } catch {
-    // On évite un écran planté si l'API ne répond pas
     document.getElementById('statTotal').textContent = '–';
     document.getElementById('statOuvert').textContent = '–';
   }
@@ -102,6 +102,8 @@ async function voirStatsConcours(id, titre) {
       alert(s.message || "Erreur lors du chargement des statistiques.");
       return;
     }
+
+    concoursActuelDashboard = { id, titre };
 
     document.getElementById('titreStatsConcours').textContent = `📊 ${titre}`;
     document.getElementById('statCandidats').textContent = s.total_candidats;
@@ -146,6 +148,17 @@ async function voirStatsConcours(id, titre) {
 
 function fermerStatsConcours() {
   document.getElementById('zoneStatsConcours').style.display = 'none';
+}
+
+async function allerVersResultats() {
+  if (!concoursActuelDashboard) return;
+
+  afficherSection('resultats');
+
+  await remplirSelectConcoursResultats();
+
+  document.getElementById('selectConcoursResultats').value = concoursActuelDashboard.id;
+  await chargerResultatsConcours();
 }
 
 // ===== Tableau des concours =====
@@ -719,9 +732,11 @@ async function remplirSelectConcoursResultats() {
 async function chargerResultatsConcours() {
   const concoursId = document.getElementById('selectConcoursResultats').value;
   const zone = document.getElementById('accordeonResultats');
+  const zonePub = document.getElementById('zonePublication');
 
   if (!concoursId) {
     zone.innerHTML = '<p class="text-muted text-center py-4">Sélectionnez un concours pour afficher les résultats.</p>';
+    zonePub.style.display = 'none';
     return;
   }
 
@@ -729,7 +744,11 @@ async function chargerResultatsConcours() {
 
   try {
     const res = await fetch(`${API}/resultats?par_candidat=${concoursId}`, { headers: { 'Authorization': 'Bearer ' + token } });
-    const candidats = await res.json();
+    const data = await res.json();
+
+    const candidats = data.candidats || [];
+
+    afficherZonePublication(data.publie, concoursId);
 
     if (candidats.length === 0) {
       zone.innerHTML = '<p class="text-muted text-center py-4">Aucun résultat disponible pour ce concours.</p>';
@@ -739,6 +758,50 @@ async function chargerResultatsConcours() {
     zone.innerHTML = genererAccordeonResultats(candidats);
   } catch {
     zone.innerHTML = '<p class="text-danger text-center py-4">Erreur lors du chargement des résultats.</p>';
+    zonePub.style.display = 'none';
+  }
+}
+
+function afficherZonePublication(publie, concoursId) {
+  const zonePub = document.getElementById('zonePublication');
+  const badge = document.getElementById('badgePublication');
+  const btn = document.getElementById('btnPublierResultats');
+
+  zonePub.style.display = 'flex';
+
+  if (publie) {
+    badge.innerHTML = '✅ Résultats publiés — visibles par les candidats';
+    badge.className = 'badge-publication badge-publication-ok';
+    btn.style.display = 'none';
+  } else {
+    badge.innerHTML = '🔒 Résultats non publiés — invisibles pour les candidats';
+    badge.className = 'badge-publication badge-publication-attente';
+    btn.style.display = '';
+    btn.dataset.concoursId = concoursId;
+  }
+}
+
+async function publierResultats() {
+  const btn = document.getElementById('btnPublierResultats');
+  const concoursId = btn.dataset.concoursId;
+
+  if (!confirm("Publier les résultats de ce concours ? Ils deviendront immédiatement visibles par tous les candidats concernés.")) return;
+
+  try {
+    const res = await fetch(`${API}/resultats`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'publier', concours_id: concoursId })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      chargerResultatsConcours();
+    } else {
+      alert(data.message || "Erreur lors de la publication.");
+    }
+  } catch {
+    alert('Erreur réseau.');
   }
 }
 
@@ -783,8 +846,8 @@ async function chargerConcoursAffectation() {
   }
 
   document.getElementById('zoneAffectation').style.display = 'none';
-  document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none'; // ⚠️ NOUVEAU
-  document.getElementById('zoneAffectationEpreuve').style.display = 'none'; // ⚠️ NOUVEAU
+  document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none';
+  document.getElementById('zoneAffectationEpreuve').style.display = 'none';
 }
 
 async function chargerJurysAffectesAffectation() {
@@ -793,8 +856,8 @@ async function chargerJurysAffectesAffectation() {
 
   if (!concoursId) {
     zone.style.display = 'none';
-    document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none'; // ⚠️ NOUVEAU
-    document.getElementById('zoneAffectationEpreuve').style.display = 'none'; // ⚠️ NOUVEAU
+    document.getElementById('zoneSelectEpreuveAffectation').style.display = 'none';
+    document.getElementById('zoneAffectationEpreuve').style.display = 'none';
     return;
   }
   zone.style.display = '';
@@ -802,7 +865,7 @@ async function chargerJurysAffectesAffectation() {
   await Promise.all([
     afficherListeJurysAffectes(concoursId),
     remplirSelectJurysDisponibles(),
-    chargerEpreuvesAffectationEpreuve(concoursId) // ⚠️ NOUVEAU — charge aussi les épreuves de ce concours
+    chargerEpreuvesAffectationEpreuve(concoursId)
   ]);
 }
 
@@ -902,21 +965,15 @@ async function retirerAffectation(id) {
 }
 
 // ==========================================================================
-// ⚠️ NOUVEAU BLOC — Affectations jury (correction des copies — par ÉPREUVE)
-// Même logique que le bloc ci-dessus, mais un cran plus précis : on choisit
-// d'abord un concours, puis une épreuve précise DANS ce concours, avant de
-// pouvoir y affecter un jury.
+// Affectations jury (correction des copies — par ÉPREUVE)
 // ==========================================================================
 
-// Se déclenche automatiquement dès qu'un concours est choisi dans le select
-// principal (#selectConcoursAffectation) : charge la liste de ses épreuves
-// pour le bloc "Correction des copies" juste en dessous.
 async function chargerEpreuvesAffectationEpreuve(concoursId) {
   const zoneSelect = document.getElementById('zoneSelectEpreuveAffectation');
   const selectEpreuve = document.getElementById('selectEpreuveAffectation');
 
   document.getElementById('zoneAffectationEpreuve').style.display = 'none';
-  selectEpreuve.value = ''; // on repart d'une sélection vide à chaque changement de concours
+  selectEpreuve.value = '';
 
   if (!concoursId) {
     zoneSelect.style.display = 'none';
@@ -940,7 +997,6 @@ async function chargerEpreuvesAffectationEpreuve(concoursId) {
   }
 }
 
-// Se déclenche quand on choisit une épreuve : charge les jurys affectés + la liste des jurys disponibles
 async function chargerJurysAffectesAffectationEpreuve() {
   const epreuveId = document.getElementById('selectEpreuveAffectation').value;
   const zone = document.getElementById('zoneAffectationEpreuve');
@@ -1049,6 +1105,86 @@ async function retirerAffectationEpreuve(id) {
     }
   } catch {
     alert('Erreur réseau');
+  }
+}
+
+// ==========================================================================
+// ⚠️ NOUVEAU — Notifications
+// ==========================================================================
+
+// Affiche ou masque le sélecteur de candidat selon le mode choisi (globale / ciblée)
+function toggleDestinataireNotif() {
+  const mode = document.getElementById('typeDestinataireNotif').value;
+  document.getElementById('zoneCandidatNotif').style.display = mode === 'ciblee' ? '' : 'none';
+}
+
+// Charge la liste des candidats pour le sélecteur "notification ciblée"
+// Réutilise la même route /auth?role=... déjà utilisée pour les jurys
+async function chargerCandidatsNotif() {
+  const select = document.getElementById('selectCandidatNotif');
+  try {
+    const res = await fetch(`${API}/auth?role=candidat`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+
+    if (!data.length) {
+      select.innerHTML = '<option value="">Aucun candidat trouvé</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- Choisir un candidat --</option>';
+    data.forEach(c => { select.innerHTML += `<option value="${c.id}">${escapeHtml(c.nom)} ${escapeHtml(c.prenom || '')} (${escapeHtml(c.email)})</option>`; });
+  } catch {
+    select.innerHTML = '<option value="">Erreur de chargement</option>';
+  }
+}
+
+// Envoie la notification créée par l'admin (globale ou ciblée)
+async function envoyerNotification() {
+  const modeDestinataire = document.getElementById('typeDestinataireNotif').value;
+  const idCandidat = document.getElementById('selectCandidatNotif').value;
+  const titre = document.getElementById('titreNotif').value.trim();
+  const message = document.getElementById('messageNotif').value.trim();
+  const type = document.getElementById('typeNotif').value;
+  const lien = document.getElementById('lienNotif').value.trim();
+
+  if (!titre || !message) {
+    document.getElementById('alertNotif').innerHTML =
+      '<div class="alert alert-warning">Le titre et le message sont obligatoires.</div>';
+    return;
+  }
+
+  if (modeDestinataire === 'ciblee' && !idCandidat) {
+    document.getElementById('alertNotif').innerHTML =
+      '<div class="alert alert-warning">Choisis un candidat, ou passe en notification globale.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        id_destinataire: modeDestinataire === 'ciblee' ? idCandidat : null,
+        titre,
+        message,
+        type,
+        lien: lien || null
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('alertNotif').innerHTML =
+        '<div class="alert alert-success">✅ Notification envoyée !</div>';
+      ['titreNotif', 'messageNotif', 'lienNotif'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('selectCandidatNotif').value = '';
+    } else {
+      document.getElementById('alertNotif').innerHTML =
+        `<div class="alert alert-danger">${escapeHtml(data.message)}</div>`;
+    }
+  } catch {
+    document.getElementById('alertNotif').innerHTML =
+      '<div class="alert alert-danger">Erreur réseau.</div>';
   }
 }
 

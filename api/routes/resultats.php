@@ -41,9 +41,8 @@ function recalculerClassement($conn, $concours_id) {
     }
 }
 
-// ⚠️ NOUVELLE FONCTION — vérifie qu'un jury est bien affecté à une épreuve précise
+// ⚠️ Vérifie qu'un jury est bien affecté à une épreuve précise
 // avant de le laisser lire ou noter les copies de celle-ci.
-// Retourne true si affecté, false sinon.
 function juryEstAffecteAEpreuve($conn, $jury_id, $epreuve_id) {
     $stmt = $conn->prepare("
         SELECT COUNT(*) FROM jury_affectations_epreuve
@@ -75,7 +74,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     $conn = (new Database())->connect();
 
-    // ⚠️ NOUVEAU — Vérification du cloisonnement par épreuve : un jury ne peut consulter
+    // Vérification du cloisonnement par épreuve : un jury ne peut consulter
     // que les copies des épreuves pour lesquelles il est explicitement affecté.
     if (!juryEstAffecteAEpreuve($conn, $user->id, $epreuve_id)) {
         http_response_code(403);
@@ -155,6 +154,8 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     ]);
 
 // ===== GET par_candidat — classement détaillé d'un concours, réservé admin =====
+// La réponse est enveloppée dans un objet { publie, candidats } pour que le front
+// sache si ce classement est déjà visible par les candidats ou non.
 } else if ($method === 'GET' && isset($_GET['par_candidat'])) {
 
     if ($user->role !== 'admin') {
@@ -166,6 +167,11 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     $concours_id = $_GET['par_candidat'];
 
     $conn = (new Database())->connect();
+
+    // On vérifie l'état de publication du concours au passage
+    $pubStmt = $conn->prepare("SELECT resultats_publies FROM concours WHERE id = ?");
+    $pubStmt->execute([$concours_id]);
+    $publie = (bool) $pubStmt->fetchColumn();
 
     // 1. Liste des candidats notés pour ce concours, avec leur résultat global
     $candidatsStmt = $conn->prepare("
@@ -219,7 +225,10 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     unset($candidat);
 
     http_response_code(200);
-    echo json_encode($candidats);
+    echo json_encode([
+        "publie"    => $publie,
+        "candidats" => $candidats
+    ]);
 
 // ===== GET detail_candidat — détail complet d'un candidat, réservé admin =====
 } else if ($method === 'GET' && isset($_GET['detail_candidat'])) {
@@ -287,6 +296,97 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     http_response_code(200);
     echo json_encode($candidat);
 
+// ===== GET mes_resultats — résultats du candidat connecté, un par concours =====
+// ⚠️ NOUVEAU — ownership strict : on part UNIQUEMENT de $user->id (issu du token JWT),
+// jamais d'un ID transmis par le client. Un concours n'apparaît "disponible" que si
+// l'admin a publié ses résultats ET que la note du candidat a bien été calculée.
+} else if ($method === 'GET' && isset($_GET['mes_resultats'])) {
+
+    if ($user->role !== 'candidat') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès réservé aux candidats"]);
+        exit();
+    }
+
+    $conn = (new Database())->connect();
+
+    // Toutes les candidatures validées de ce candidat, avec l'état de publication
+    // du concours parent et son éventuel résultat (LEFT JOIN car pas encore corrigé = normal)
+    $stmt = $conn->prepare("
+        SELECT 
+            c.id AS candidature_id,
+            co.id AS concours_id,
+            co.titre AS concours_titre,
+            co.resultats_publies,
+            r.note_totale,
+            r.mention,
+            r.rang
+        FROM candidatures c
+        INNER JOIN concours co ON c.concours_id = co.id
+        LEFT JOIN resultats r ON r.candidature_id = c.id
+        WHERE c.user_id = ? AND c.statut = 'validé'
+        ORDER BY co.date_debut DESC
+    ");
+    $stmt->execute([$user->id]);
+    $lignes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Requête réutilisée pour chaque candidature dont le résultat est bien disponible
+    $detailStmt = $conn->prepare("
+        SELECT 
+            e.titre,
+            e.coefficient,
+            SUM(CASE 
+                    WHEN r.points_obtenus IS NOT NULL THEN r.points_obtenus
+                    WHEN r.est_correcte = 1 THEN q.points
+                    ELSE 0
+                END) AS obtenu,
+            SUM(q.points) AS possible
+        FROM reponses r
+        INNER JOIN questions q ON r.question_id = q.id
+        INNER JOIN epreuves e ON q.epreuve_id = e.id
+        WHERE r.candidature_id = ?
+        GROUP BY e.id, e.titre, e.coefficient
+    ");
+
+    $resultats = [];
+
+    foreach ($lignes as $ligne) {
+        $publie = (bool) $ligne['resultats_publies'];
+        $noteDispo = $ligne['note_totale'] !== null;
+        // Un résultat n'est "disponible" pour le candidat que si les DEUX conditions sont réunies
+        $disponible = $publie && $noteDispo;
+
+        $item = [
+            "concours_id"         => $ligne['concours_id'],
+            "concours_titre"      => $ligne['concours_titre'],
+            "publie"              => $publie,
+            "resultat_disponible" => $disponible,
+            "note_totale"         => $disponible ? (float) $ligne['note_totale'] : null,
+            "mention"             => $disponible ? $ligne['mention'] : null,
+            "rang"                => $disponible ? (int) $ligne['rang'] : null,
+            "epreuves"            => []
+        ];
+
+        if ($disponible) {
+            $detailStmt->execute([$ligne['candidature_id']]);
+            $epreuvesDetail = $detailStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($epreuvesDetail as &$ep) {
+                $ep['note_sur_20'] = $ep['possible'] > 0
+                    ? round(($ep['obtenu'] / $ep['possible']) * 20, 2)
+                    : 0;
+            }
+            unset($ep);
+
+            $item['epreuves'] = $epreuvesDetail;
+        }
+
+        $resultats[] = $item;
+    }
+
+    http_response_code(200);
+    echo json_encode($resultats);
+
 // ===== POST — Le jury note une réponse ouverte =====
 } else if ($method === 'POST') {
 
@@ -310,7 +410,6 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     $conn = (new Database())->connect();
 
     // Récupérer le barème max de la question liée à cette réponse, pour valider la note
-    // ⚠️ MODIFIÉ — on récupère aussi epreuve_id, nécessaire pour la vérification d'affectation ci-dessous
     $verif = $conn->prepare("
         SELECT q.points AS bareme, q.epreuve_id AS epreuve_id
         FROM reponses r
@@ -326,7 +425,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
         exit();
     }
 
-    // ⚠️ NOUVEAU — Vérification du cloisonnement par épreuve : même si le jury connaît
+    // Vérification du cloisonnement par épreuve : même si le jury connaît
     // un reponse_id par appel direct à l'API, il ne peut noter que les épreuves pour
     // lesquelles il est explicitement affecté.
     if (!juryEstAffecteAEpreuve($conn, $user->id, $ligne['epreuve_id'])) {
@@ -426,6 +525,49 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     http_response_code(200);
     echo json_encode(["message" => "Note enregistrée avec succès"]);
+
+// ===== PUT — L'admin publie officiellement les résultats d'un concours =====
+// C'est ce déclic qui rend les résultats visibles côté candidat. Avant ce PUT,
+// les notes existent déjà en base mais restent invisibles pour eux.
+} else if ($method === 'PUT') {
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès réservé à l'administrateur"]);
+        exit();
+    }
+
+    $data = json_decode(file_get_contents("php://input"), true);
+    $action = $data['action'] ?? null;
+    $concours_id = $data['concours_id'] ?? null;
+
+    if ($action !== 'publier' || !$concours_id) {
+        http_response_code(400);
+        echo json_encode(["message" => "Requête invalide"]);
+        exit();
+    }
+
+    $conn = (new Database())->connect();
+
+    // Sécurité métier : on refuse de publier un concours qui n'a encore aucun résultat calculé
+    $checkStmt = $conn->prepare("
+        SELECT COUNT(*) FROM resultats r
+        INNER JOIN candidatures c ON r.candidature_id = c.id
+        WHERE c.concours_id = ?
+    ");
+    $checkStmt->execute([$concours_id]);
+
+    if ($checkStmt->fetchColumn() == 0) {
+        http_response_code(400);
+        echo json_encode(["message" => "Aucun résultat n'a encore été calculé pour ce concours, publication impossible"]);
+        exit();
+    }
+
+    $stmt = $conn->prepare("UPDATE concours SET resultats_publies = 1 WHERE id = ?");
+    $stmt->execute([$concours_id]);
+
+    http_response_code(200);
+    echo json_encode(["message" => "Résultats publiés avec succès"]);
 
 } else {
     http_response_code(405);

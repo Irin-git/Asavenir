@@ -1,0 +1,337 @@
+/* =========================================================
+   mes_resultats.css — Mes Résultats — Asavenir (Espace Candidat)
+   Écran unique : liste de barres, une par concours. Le détail
+   (moyenne, mention, rang) vit désormais dans une page séparée,
+   voir detail_resultat_candidat.css.
+   ========================================================= */
+
+:root {
+  --navy: #0A1F44;
+  --navy-deep: #051029;
+  --blue-vivid: #2F6FED;
+  --emerald: #00C896;
+  --emerald-dark: #00A67D;
+  --emerald-soft: #E3FBF3;
+  --terracotta: #E2733F;
+  --gold: #E0A72E;
+  --gold-soft: #FBF1D9;
+  --violet-clair: #A78BFA;
+  --violet-deep: #7C6FED;
+  --ink: #10203F;
+  --ink-soft: #6B7690;
+  --beige-soft: #F8EFDF;
+  --beige-dark: #C9A574;
+  --white: #FFFFFF;
+  --danger: #E4574C;
+  --danger-soft: #FCEBE9;
+  --warning: #E0A72E;
+  --warning-soft: #FBF0D9;
+  --border: #E7DCC4;
+  --radius-lg: 22px;
+  --radius-md: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--beige-soft);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ===== Navbar — identique à concours.html ===== */
+.navbar {
+  background: linear-gradient(100deg, var(--navy) 0%, var(--navy-deep) 100%);
+  box-shadow: 0 4px 20px rgba(10, 31, 68, 0.15);
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-badge .glyph {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue-vivid), var(--emerald));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; color: var(--navy-deep); font-size: 16px;
+  flex-shrink: 0;
+}
+
+.brand-badge .brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-badge .brand-text .name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--white);
+}
+
+.brand-badge .brand-text .tag {
+  font-size: 10.5px;
+  color: var(--beige-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.btn-mes-epreuves {
+  background: var(--emerald);
+  color: var(--navy-deep);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn-mes-epreuves:hover {
+  color: var(--navy-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+}
+
+.btn-outline-light {
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+/* ===== Bloc hero — dégradé navy, accent doré (trophée) ===== */
+.resultats-hero {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 85% 20%, rgba(224,167,46,0.25), transparent 50%),
+    linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+  padding: 2.1rem 2.3rem;
+  margin: 1.5rem 0 2rem;
+  overflow: hidden;
+  color: var(--white);
+}
+
+.resultats-hero .hero-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.resultats-hero .shape-1 {
+  width: 150px; height: 150px;
+  background: radial-gradient(circle, var(--gold), transparent 70%);
+  top: -40px; right: 50px;
+  animation: float-a 7s ease-in-out infinite;
+}
+
+.resultats-hero .shape-2 {
+  width: 100px; height: 100px;
+  background: radial-gradient(circle, var(--emerald), transparent 70%);
+  bottom: -20px; right: 200px;
+  animation: float-b 9s ease-in-out infinite;
+}
+
+.resultats-hero .shape-3 {
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, var(--violet-clair), transparent 70%);
+  top: 30px; right: 320px;
+  animation: float-a 8s ease-in-out infinite reverse;
+}
+
+@keyframes float-a {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-14px, 18px); }
+}
+
+@keyframes float-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(12px, -16px); }
+}
+
+.resultats-hero h2 {
+  position: relative;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+.resultats-hero p {
+  position: relative;
+  color: #C9D6F2;
+  font-size: 0.92rem;
+  margin: 0;
+  max-width: 520px;
+}
+
+/* ===== Titre de section ===== */
+.section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+  border-left: 4px solid var(--gold);
+  padding-left: 12px;
+  margin-bottom: 1.1rem;
+}
+
+/* =========================================================
+   Barres "résultat" — même structure/animations que les barres
+   "carte-concours-select" d'epreuves.css. Aucune note ni mention
+   n'est affichée ici : tout se révèle uniquement après le clic,
+   sur la page detail_resultat_candidat.html.
+   ========================================================= */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.liste-concours-resultats {
+  animation: fadeSlideUp 0.45s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.carte-resultat-select {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--gold);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.3s ease,
+              background 0.3s ease,
+              border-left-color 0.3s ease;
+  box-shadow: 0 3px 12px rgba(16, 32, 63, 0.05);
+  animation: fadeSlideUp 0.45s ease both;
+}
+
+.carte-resultat-select:nth-child(1) { animation-delay: 0.02s; }
+.carte-resultat-select:nth-child(2) { animation-delay: 0.08s; }
+.carte-resultat-select:nth-child(3) { animation-delay: 0.14s; }
+.carte-resultat-select:nth-child(4) { animation-delay: 0.20s; }
+.carte-resultat-select:nth-child(5) { animation-delay: 0.26s; }
+.carte-resultat-select:nth-child(n+6) { animation-delay: 0.3s; }
+
+/* ⚠️ MODIFIÉ — le halo au survol est désormais violet clair (au lieu de doré) */
+.carte-resultat-select::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(167, 139, 250, 0.16), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+  pointer-events: none;
+}
+
+.carte-resultat-select:hover::before {
+  left: 120%;
+}
+
+/* ⚠️ MODIFIÉ — l'accent au survol (fond + bordure + chevron) passe au violet clair,
+   pour rester cohérent avec la couleur du halo lumineux */
+.carte-resultat-select:hover {
+  transform: translateY(-3px) scale(1.008);
+  box-shadow: 0 10px 26px rgba(124, 111, 237, 0.16);
+  background: #F5F2FF;
+  border-left-color: var(--violet-deep);
+}
+
+.carte-resultat-select:active {
+  transform: translateY(-1px) scale(0.997);
+}
+
+.carte-resultat-select.disabled {
+  cursor: default;
+  opacity: 0.75;
+  border-left-color: var(--ink-soft);
+}
+
+.carte-resultat-select.disabled::before { display: none; }
+.carte-resultat-select.disabled:hover {
+  transform: none;
+  box-shadow: 0 3px 12px rgba(16, 32, 63, 0.05);
+  background: var(--white);
+  border-left-color: var(--ink-soft);
+}
+
+.icone-resultat-rond {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--terracotta));
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 10px rgba(224, 167, 46, 0.3);
+}
+
+.icone-resultat-rond.icone-attente {
+  background: linear-gradient(135deg, #B7BFCF, #8E97AC);
+  box-shadow: none;
+}
+
+.carte-resultat-texte {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.carte-resultat-titre {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.carte-resultat-sous-texte {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.chevron-resultat {
+  color: var(--ink-soft);
+  font-size: 1.2rem;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.carte-resultat-select:hover .chevron-resultat {
+  transform: translateX(6px);
+  color: var(--violet-deep);
+}
+
+.badge-attente {
+  background: #EEF0F4;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 13px;
+  border-radius: 999px;
+  white-space: nowrap;
+}

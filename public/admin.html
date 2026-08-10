@@ -81,6 +81,12 @@
             Résultats
           </a>
 
+          <!-- ⚠️ NOUVEAU — lien vers la section Notifications -->
+          <a href="#" class="sidebar-link" data-color="indigo" onclick="afficherSection('notifications')">
+            <span class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+            Notifications
+          </a>
+
           <div class="sidebar-divider"></div>
 
           <a href="concours.html" class="sidebar-link sidebar-external" data-color="indigo">
@@ -168,6 +174,13 @@
                 Taux de réussite : <strong id="statTauxReussite">—</strong>%
                 (<span id="statEnAttente">—</span> copie(s) en attente de correction)
               </p>
+
+              <!-- ⚠️ NOUVEAU — passerelle directe vers la section Résultats pour ce même concours -->
+              <div class="text-center mt-4">
+                <button class="btn-admin btn btn-voir-resultats" onclick="allerVersResultats()">
+                  🏆 Voir les résultats de ce concours
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -311,6 +324,14 @@
             <select class="form-select" id="selectConcoursResultats" onchange="chargerResultatsConcours()">
               <option value="">Chargement...</option>
             </select>
+
+            <!-- ⚠️ NOUVEAU — zone de publication, affichée seulement après sélection d'un concours -->
+            <div id="zonePublication" class="publication-zone" style="display:none;">
+              <span id="badgePublication" class="badge-publication"></span>
+              <button class="btn-admin btn" id="btnPublierResultats" onclick="publierResultats()">
+                🚀 Publier les résultats
+              </button>
+            </div>
           </div>
 
           <div id="accordeonResultats">
@@ -468,7 +489,7 @@
  
           <hr class="my-4" />
  
-          <!-- ⚠️ NOUVEAU — Correction des copies (cloisonnement par épreuve) -->
+          <!-- Correction des copies (cloisonnement par épreuve) -->
           <p class="section-title" style="font-size:16px;">Correction des copies (par épreuve)</p>
  
           <div class="form-card mb-4" id="zoneSelectEpreuveAffectation" style="display:none;">
@@ -505,6 +526,58 @@
  
         </div>
         <!-- fin section-affectations -->
+
+        <!-- ===== NOUVEAU — Notifications ===== -->
+        <div id="section-notifications" style="display:none;">
+          <p class="section-title">🔔 Créer une notification</p>
+
+          <div class="form-card mb-4" style="max-width: 640px;">
+            <div id="alertNotif"></div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Destinataire</label>
+              <select class="form-select" id="typeDestinataireNotif" onchange="toggleDestinataireNotif()">
+                <option value="globale">🌍 Tous les candidats (notification globale)</option>
+                <option value="ciblee">🎯 Un candidat en particulier</option>
+              </select>
+            </div>
+
+            <div class="mb-3" id="zoneCandidatNotif" style="display:none;">
+              <label class="form-label fw-semibold">Choisir le candidat</label>
+              <select class="form-select" id="selectCandidatNotif">
+                <option value="">Chargement...</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Titre</label>
+              <input type="text" class="form-control" id="titreNotif" placeholder="Ex: Résultats publiés" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Message</label>
+              <textarea class="form-control" id="messageNotif" rows="3" placeholder="Écrivez le contenu de la notification..."></textarea>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Type</label>
+                <select class="form-select" id="typeNotif">
+                  <option value="info">ℹ️ Information</option>
+                  <option value="succes">✅ Succès</option>
+                  <option value="alerte">⚠️ Alerte</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Lien (optionnel)</label>
+                <input type="text" class="form-control" id="lienNotif" placeholder="Ex: resultats.html" />
+              </div>
+            </div>
+
+            <button class="btn-admin btn" onclick="envoyerNotification()">📤 Envoyer la notification</button>
+          </div>
+        </div>
+        <!-- fin section-notifications -->
 
       </div>
       <!-- fin col-md-10 -->

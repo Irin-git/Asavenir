@@ -49,7 +49,13 @@
             break;
         case 'affectations_epreuve':
             require 'routes/affectations_epreuve.php';
-            break;        
+            break;
+        case 'notifications':
+            require 'routes/notifications.php';
+            break;  
+        case 'push_subscribe':
+            require 'routes/push_subscribe.php';
+            break;          
         default:
             http_response_code(404);
             echo json_encode(["message" => "Route introuvable"]);

@@ -1,28 +1,21 @@
-// ===============================
-// jury.js — Espace de correction (rôle jury)
-// ===============================
-// Ce fichier permet à un membre du jury de :
-// 0. examiner les candidatures reçues et donner un avis consultatif (favorable/défavorable)
-// 1. choisir un concours puis une épreuve déjà approuvée
-// 2. corriger les copies une par une, de façon anonyme (juste un numéro de copie, pas de nom)
-
 const API = '/concours_fp/api/index.php';
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-// Garde d'accès : seul un compte "jury" connecté peut voir cette page
+// Garde d'accès : seul un compte jury connecté peut voir cette page
 if (!token || user.role !== 'jury') {
   window.location.href = 'login.html';
 }
 
-document.getElementById('nomJury').textContent = user.nom || 'Jury';
+document.getElementById('nomJury').textContent = `👤 ${user.nom || 'Jury'}`;
+document.getElementById('heroNomJury').textContent = user.nom || 'Jury';
 
 function deconnexion() {
   localStorage.clear();
   window.location.href = 'login.html';
 }
 
-// ===== Petite bibliothèque d'icônes SVG inline (aucun emoji dans l'interface) =====
+// Icônes SVG inline, aucun emoji dans l'interface (hors nom d'utilisateur, aligné sur l'admin)
 const svgIcons = {
   eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -40,14 +33,42 @@ function showAlertJury(msg, type = 'danger') {
     `<div class="alert-jury-box ${cls}"><span style="width:16px;height:16px;flex-shrink:0;">${icon}</span>${msg}</div>`;
 }
 
-// Petite protection contre l'injection HTML dans les noms/titres affichés
+// Anti-XSS pour tout texte injecté en innerHTML
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str ?? '';
   return div.innerHTML;
 }
 
-// ===== Bandeau des affectations du jury connecté (dossiers de candidature) =====
+// Ouverture / fermeture de l'overlay de sélection d'épreuve
+function ouvrirSelectionJury() {
+  document.getElementById('overlaySelectionJury').style.display = 'flex';
+  chargerConcoursJury();
+}
+function fermerSelectionJury() {
+  document.getElementById('overlaySelectionJury').style.display = 'none';
+}
+
+// Bascule entre la vue principale et l'écran de correction plein cadre
+function afficherVueCorrection(titreEpreuve) {
+  fermerSelectionJury();
+  document.getElementById('vuePrincipaleJury').style.display = 'none';
+  document.getElementById('vueCorrectionJury').style.display = '';
+  document.getElementById('titreEpreuveCorrection').textContent = titreEpreuve;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function retourVueJury() {
+  document.getElementById('vueCorrectionJury').style.display = 'none';
+  document.getElementById('vuePrincipaleJury').style.display = '';
+  document.getElementById('zoneReponsesJury').innerHTML = '';
+  document.getElementById('progressCopiesJury').innerHTML = '';
+  document.getElementById('alertMsgJury').innerHTML = '';
+  copiesJury = [];
+  indexCopieJury = 0;
+}
+
+// Bandeau des affectations (dossiers de candidature) + compteur hero
 async function chargerAffectationsJury() {
   const zone = document.getElementById('bandeauAffectationsJury');
   try {
@@ -57,12 +78,14 @@ async function chargerAffectationsJury() {
     const data = await res.json();
 
     if (!res.ok) {
-      zone.innerHTML = `<p class="text-danger">${data.message || 'Erreur de chargement des affectations.'}</p>`;
+      zone.innerHTML = `<p class="text-danger text-center">${data.message || 'Erreur de chargement des affectations.'}</p>`;
       return;
     }
 
+    document.getElementById('pillAffectations').innerHTML = `<strong>${data.length}</strong> concours affectés`;
+
     if (!data.length) {
-      zone.innerHTML = `<div class="alert-jury-box alert-jury-danger">${svgIcons.warning} Aucune affectation pour le moment. Contactez l'administrateur.</div>`;
+      zone.innerHTML = `<div class="alert-jury-box alert-jury-danger" style="justify-content:center;">${svgIcons.warning} Aucune affectation pour le moment. Contactez l'administrateur.</div>`;
       return;
     }
 
@@ -72,15 +95,11 @@ async function chargerAffectationsJury() {
       </div>
     `;
   } catch {
-    zone.innerHTML = '<p class="text-danger">Erreur réseau lors du chargement des affectations.</p>';
+    zone.innerHTML = '<p class="text-danger text-center">Erreur réseau lors du chargement des affectations.</p>';
   }
 }
 
-// ============================================
-// ===== Candidatures à examiner (nouveau) =====
-// ============================================
-
-// Traduit la valeur technique de l'avis en badge lisible pour le jury
+// Traduit l'avis technique en badge lisible
 function badgeAvis(avis) {
   if (avis === 'favorable') return `<span class="badge-avis badge-favorable">${svgIcons.check} Favorable</span>`;
   if (avis === 'defavorable') return `<span class="badge-avis badge-defavorable">${svgIcons.cross} Défavorable</span>`;
@@ -99,6 +118,9 @@ async function chargerCandidaturesJury() {
         `<tr><td colspan="6" class="text-danger text-center py-3">${data.message || 'Erreur de chargement.'}</td></tr>`;
       return;
     }
+
+    const enAttente = data.filter(c => !c.avis_jury).length;
+    document.getElementById('pillCandidatures').innerHTML = `<strong>${enAttente}</strong> dossiers en attente d'avis`;
 
     if (!data.length) {
       document.getElementById('tableauCandidaturesJury').innerHTML =
@@ -127,7 +149,7 @@ async function chargerCandidaturesJury() {
   }
 }
 
-// L'avis du jury est consultatif : il n'efface jamais le statut final, géré uniquement par l'admin
+// L'avis du jury reste consultatif, il ne remplace jamais le statut final géré par l'admin
 async function donnerAvisCandidature(id, avis_jury) {
   try {
     const res = await fetch(`${API}/candidatures`, {
@@ -146,18 +168,13 @@ async function donnerAvisCandidature(id, avis_jury) {
   }
 }
 
-// ============================================
-// ===== Correction des copies (inchangé) =====
-// ============================================
-
-// ===== CORRIGÉ : Chargement des concours =====
-// Avant : appelait /concours (route générale, TOUS les concours de la plateforme).
-// Un jury voyait donc des concours où il n'a aucune épreuve affectée, d'où le message
-// trompeur "Aucune épreuve approuvée" au lieu d'un message clair d'absence d'affectation.
-// Maintenant : appelle /epreuves?mes_concours_jury=1, qui ne renvoie que les concours
-// où le jury a au moins une épreuve qui lui est explicitement affectée.
+// Ne liste que les concours où le jury a au moins une épreuve affectée
 async function chargerConcoursJury() {
   const select = document.getElementById('selectConcoursJury');
+  const selectEpreuve = document.getElementById('selectEpreuveJury');
+  selectEpreuve.innerHTML = '<option value="">Sélectionnez d\'abord un concours</option>';
+  document.getElementById('btnLancerCorrection').disabled = true;
+
   try {
     const res = await fetch(`${API}/epreuves?mes_concours_jury=1`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -183,16 +200,10 @@ async function chargerConcoursJury() {
   }
 }
 
-// ===== Chargement des épreuves approuvées du concours choisi =====
 async function chargerEpreuvesJury() {
   const concours_id = document.getElementById('selectConcoursJury').value;
   const selectEpreuve = document.getElementById('selectEpreuveJury');
-  document.getElementById('zoneReponsesJury').innerHTML = '';
-  document.getElementById('progressCopiesJury').innerHTML = '';
-
-  // On repart de zéro sur la liste des copies dès qu'on change de concours
-  copiesJury = [];
-  indexCopieJury = 0;
+  document.getElementById('btnLancerCorrection').disabled = true;
 
   if (!concours_id) {
     selectEpreuve.innerHTML = '<option value="">Sélectionnez d\'abord un concours</option>';
@@ -204,7 +215,7 @@ async function chargerEpreuvesJury() {
   });
   const data = await res.json();
 
-  // Seules les épreuves déjà validées par l'admin peuvent être corrigées par le jury
+  // Seules les épreuves déjà validées par l'admin peuvent être corrigées
   const approuvees = data.filter(e => e.statut_validation === 'approuvé');
 
   if (approuvees.length === 0) {
@@ -216,21 +227,23 @@ async function chargerEpreuvesJury() {
   approuvees.forEach(e => {
     selectEpreuve.innerHTML += `<option value="${e.id}">${escapeHtml(e.titre)} (coeff. ${e.coefficient})</option>`;
   });
+
+  selectEpreuve.onchange = () => {
+    document.getElementById('btnLancerCorrection').disabled = !selectEpreuve.value;
+  };
 }
 
-// ===== Gestion des copies (regroupement par candidature) =====
-let copiesJury = [];      // liste des copies restantes à corriger
-let indexCopieJury = 0;   // compteur pour afficher "Copie #1", "Copie #2", etc.
-let totalCopiesJury = 0;  // total de départ, utilisé uniquement pour la jauge de progression (affichage)
+let copiesJury = [];      // copies restantes à corriger
+let indexCopieJury = 0;   // compteur pour "Copie #1", "Copie #2", etc.
+let totalCopiesJury = 0;  // total de départ, pour la jauge de progression
 
-// ===== Chargement des réponses à corriger, regroupées par copie =====
+// Chargement des réponses à corriger, regroupées par copie, puis bascule vers l'écran de correction
 async function chargerReponsesJury() {
-  const epreuve_id = document.getElementById('selectEpreuveJury').value;
-  const zone = document.getElementById('zoneReponsesJury');
-  zone.innerHTML = '';
-  document.getElementById('alertMsgJury').innerHTML = '';
-
+  const select = document.getElementById('selectEpreuveJury');
+  const epreuve_id = select.value;
   if (!epreuve_id) return;
+
+  const titreEpreuve = select.options[select.selectedIndex].text;
 
   const res = await fetch(`${API}/resultats?a_corriger=1&epreuve_id=${epreuve_id}`, {
     headers: { 'Authorization': `Bearer ${token}` }
@@ -242,7 +255,7 @@ async function chargerReponsesJury() {
     return;
   }
 
-  // On regroupe toutes les réponses par candidature_id : chaque groupe = une copie complète
+  // Regroupement de toutes les réponses par candidature_id : chaque groupe = une copie complète
   const groupes = {};
   data.forEach(r => {
     if (!groupes[r.candidature_id]) groupes[r.candidature_id] = [];
@@ -256,10 +269,10 @@ async function chargerReponsesJury() {
   indexCopieJury = 0;
   totalCopiesJury = copiesJury.length;
 
+  afficherVueCorrection(titreEpreuve);
   afficherCopieCourante();
 }
 
-// ===== Jauge de progression — purement visuel, ne touche à aucune donnée =====
 function afficherProgressionJury() {
   const zone = document.getElementById('progressCopiesJury');
   if (!zone) return;
@@ -281,8 +294,7 @@ function afficherProgressionJury() {
   `;
 }
 
-// ===== Affiche une seule copie à la fois (jamais toutes en même temps) =====
-// Ça évite au correcteur de se mélanger entre plusieurs copies ouvertes en même temps
+// Affiche une seule copie à la fois, jamais toutes en même temps
 function afficherCopieCourante() {
   const zone = document.getElementById('zoneReponsesJury');
   afficherProgressionJury();
@@ -292,7 +304,7 @@ function afficherCopieCourante() {
     return;
   }
 
-  const copie = copiesJury[0]; // on prend toujours la première copie restante dans la liste
+  const copie = copiesJury[0];
   indexCopieJury++;
 
   const questionsHtml = copie.reponses.map(r => `
@@ -308,7 +320,7 @@ function afficherCopieCourante() {
     </div>
   `).join('');
 
-  // Le numéro de copie est affiché à la place du nom du candidat -> c'est ça, l'anonymat des copies
+  // Le numéro de copie remplace le nom du candidat : c'est ça, l'anonymat des copies
   zone.innerHTML = `
     <div class="reponse-card-jury">
       <div class="copie-header">
@@ -322,12 +334,10 @@ function afficherCopieCourante() {
   `;
 }
 
-// ===== Validation de toute une copie en un seul clic =====
 async function validerCopieJury(candidature_id) {
   const inputs = document.querySelectorAll('#zoneReponsesJury input[data-reponse-id]');
   const notes = [];
 
-  // On vérifie chaque note avant d'envoyer quoi que ce soit
   for (const input of inputs) {
     const reponse_id = input.dataset.reponseId;
     const bareme = parseFloat(input.dataset.bareme);
@@ -345,7 +355,6 @@ async function validerCopieJury(candidature_id) {
   );
   if (!confirmation) return;
 
-  // On envoie chaque note une par une (une requête par question)
   for (const note of notes) {
     const res = await fetch(`${API}/resultats`, {
       method: 'POST',
@@ -362,12 +371,9 @@ async function validerCopieJury(candidature_id) {
 
   showAlertJury('Copie corrigée avec succès', 'success');
 
-  // On retire la copie qui vient d'être traitée, et la suivante s'affiche automatiquement
   copiesJury.shift();
   afficherCopieCourante();
 }
 
-// ===== Initialisation au chargement de la page =====
 chargerAffectationsJury();
 chargerCandidaturesJury();
-chargerConcoursJury();

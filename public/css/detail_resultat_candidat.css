@@ -1,0 +1,375 @@
+/* =========================================================
+   detail_resultat_candidat.css — Détail d'un résultat — Asavenir
+   ========================================================= */
+
+:root {
+  --navy: #0A1F44;
+  --navy-deep: #051029;
+  --blue-vivid: #2F6FED;
+  --emerald: #00C896;
+  --emerald-dark: #00A67D;
+  --emerald-soft: #E3FBF3;
+  --terracotta: #E2733F;
+  --gold: #E0A72E;
+  --gold-soft: #FBF1D9;
+  --violet-clair: #A78BFA;
+  --violet-deep: #7C6FED;
+  --danger: #E4574C;
+  --danger-soft: #FCEBE9;
+  --ink: #10203F;
+  --ink-soft: #6B7690;
+  --beige-soft: #F8EFDF;
+  --beige-dark: #C9A574;
+  --white: #FFFFFF;
+  --border: #E7DCC4;
+  --radius-lg: 22px;
+  --radius-md: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--beige-soft);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ===== Navbar — identique aux autres pages candidat ===== */
+.navbar {
+  background: linear-gradient(100deg, var(--navy) 0%, var(--navy-deep) 100%);
+  box-shadow: 0 4px 20px rgba(10, 31, 68, 0.15);
+}
+
+.brand-badge { display: flex; align-items: center; gap: 10px; }
+
+.brand-badge .glyph {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue-vivid), var(--emerald));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; color: var(--navy-deep); font-size: 16px;
+  flex-shrink: 0;
+}
+
+.brand-badge .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-badge .brand-text .name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.02rem; color: var(--white); }
+.brand-badge .brand-text .tag { font-size: 10.5px; color: var(--beige-dark); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+
+.btn-mes-epreuves {
+  background: var(--emerald);
+  color: var(--navy-deep);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn-mes-epreuves:hover { color: var(--navy-deep); transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
+.btn-outline-light { border-radius: 999px; font-size: 13px; }
+
+/* ===== Bouton retour ===== */
+.btn-retour {
+  background: none;
+  border: none;
+  color: var(--blue-vivid);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.6rem 0.4rem 0;
+  margin: 1.2rem 0 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-retour:hover { color: var(--violet-deep); transform: translateX(-3px); }
+
+/* ===== Animations communes ===== */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float-a {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-14px, 18px); }
+}
+
+@keyframes float-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(12px, -16px); }
+}
+
+/* =========================================================
+   Carte d'en-tête — dégradé selon la mention.
+   ⚠️ MODIFIÉ — le vert (cas Admis) est désormais plus vif,
+   avec un dégradé plus riche (4 arrêts au lieu de 3).
+   ========================================================= */
+.detail-header-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 2rem 2.2rem;
+  margin-bottom: 1.3rem;
+  overflow: hidden;
+  color: var(--white);
+  animation: fadeSlideUp 0.5s ease both;
+  box-shadow: 0 10px 30px rgba(16, 32, 63, 0.12);
+}
+
+.detail-header-card.mention-admis {
+  background: linear-gradient(135deg, #02503C 0%, #00A67D 40%, #00E0A8 75%, #3DFFCB 100%);
+}
+
+.detail-header-card.mention-ajourne {
+  background: linear-gradient(135deg, #6B4A0E 0%, #C98E1E 60%, #E0A72E 100%);
+}
+
+.detail-header-card.mention-rejete {
+  background: linear-gradient(135deg, #7A2A22 0%, #C24B3A 60%, #E4574C 100%);
+}
+
+.detail-header-card .hero-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.detail-header-card .shape-1 { width: 150px; height: 150px; background: radial-gradient(circle, #fff, transparent 70%); top: -40px; right: 40px; animation: float-a 7s ease-in-out infinite; }
+.detail-header-card .shape-2 { width: 100px; height: 100px; background: radial-gradient(circle, var(--violet-clair), transparent 70%); bottom: -20px; right: 200px; animation: float-b 9s ease-in-out infinite; }
+.detail-header-card .shape-3 { width: 80px; height: 80px; background: radial-gradient(circle, #fff, transparent 70%); top: 40px; right: 320px; animation: float-a 8s ease-in-out infinite reverse; }
+
+.detail-header-titre {
+  position: relative;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 0 0 1.4rem;
+}
+
+.detail-header-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2.2rem;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   ⚠️ REMPLACÉ — l'ancien anneau circulaire (source du bug de
+   superposition) a été entièrement retiré. La moyenne s'affiche
+   maintenant en simple texte large, sans forme graphique autour.
+   ========================================================= */
+.moyenne-affichage {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.moyenne-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--white);
+  text-shadow: 0 4px 18px rgba(0,0,0,0.18);
+}
+
+.moyenne-suffix {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.detail-header-infos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
+.badge-mention-lg {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 7px 20px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+  backdrop-filter: blur(4px);
+}
+
+.rang-info-lg {
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: rgba(255,255,255,0.95);
+}
+
+/* =========================================================
+   Bandeau de félicitations — affiché UNIQUEMENT si Admis.
+   ⚠️ MODIFIÉ — dégradé du texte 100% jaune vif/orangé (plus
+   aucune teinte sombre), médaillon plat sans ombre "3D" ni
+   rotation continue.
+   ========================================================= */
+.felicitation-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  background: linear-gradient(120deg, #FFF6E0 0%, #FFF0D4 100%);
+  border: 1px solid var(--gold-soft);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem 1.8rem;
+  margin-bottom: 1.3rem;
+  overflow: hidden;
+  animation: fadeSlideUp 0.5s ease both 0.1s;
+  box-shadow: 0 8px 24px rgba(255, 159, 28, 0.16);
+}
+
+.medaillon-svg {
+  width: 82px;
+  flex-shrink: 0;
+  animation: medaillon-entree 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Entrée en fondu + léger zoom uniquement — plus aucune rotation continue */
+@keyframes medaillon-entree {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.felicitation-texte { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.felicitation-titre {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  background: linear-gradient(90deg, #FFC93C, #FF9F1C, #FFD166, #FF9F1C, #FFC93C);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shine-text 5s linear infinite;
+}
+
+@keyframes shine-text {
+  to { background-position: 300% center; }
+}
+
+.felicitation-sous-titre {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+/* =========================================================
+   Tableau des notes — carte premium avec cascade d'apparition
+   ========================================================= */
+.tableau-notes-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.6rem;
+  box-shadow: 0 4px 20px rgba(16, 32, 63, 0.06);
+  animation: fadeSlideUp 0.5s ease both 0.15s;
+}
+
+.tableau-titre {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ink);
+  margin-bottom: 1.1rem;
+}
+
+.tableau-notes {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.tableau-notes thead th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  font-weight: 700;
+  padding: 0 14px 6px;
+}
+
+.tableau-notes thead th:last-child,
+.tableau-notes .col-note { text-align: right; }
+
+.tableau-notes thead th:nth-child(2),
+.tableau-notes .col-coef { text-align: center; }
+
+.ligne-note {
+  background: var(--beige-soft);
+  animation: fadeSlideUp 0.4s ease both;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.ligne-note:hover {
+  background: #F5F2FF;
+  transform: translateX(2px);
+}
+
+.ligne-note td {
+  padding: 14px;
+  font-size: 0.92rem;
+}
+
+.ligne-note td:first-child { border-radius: 12px 0 0 12px; }
+.ligne-note td:last-child  { border-radius: 0 12px 12px 0; }
+
+.col-epreuve { font-weight: 600; color: var(--ink); }
+.col-coef { text-align: center; color: var(--ink-soft); font-weight: 600; }
+
+.note-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.note-valeur {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.mini-barre {
+  width: 110px;
+  height: 6px;
+  border-radius: 999px;
+  background: #E7DCC4;
+  overflow: hidden;
+}
+
+.mini-barre-remplissage {
+  height: 100%;
+  border-radius: 999px;
+  width: 0;
+  animation: remplir-barre 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes remplir-barre {
+  from { width: 0 !important; }
+}
+
+@media (max-width: 600px) {
+  .detail-header-body { flex-direction: column; align-items: flex-start; }
+  .mini-barre { width: 80px; }
+}

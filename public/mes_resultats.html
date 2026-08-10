@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mes Résultats — Espace Candidat</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="css/mes_resultats.css" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Navbar candidat — même structure que concours.html, pour rester cohérent visuellement -->
+  <nav class="navbar px-4 py-3 d-flex justify-content-between align-items-center">
+    <div class="brand-badge">
+      <div class="glyph">A</div>
+      <div class="brand-text">
+        <span class="name">Asavenir</span>
+        <span class="tag">Espace Candidat</span>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="text-white" id="nomUser" style="font-size: 14px;"></span>
+      <a href="concours.html" class="btn-mes-epreuves">🏠 Mes concours</a>
+      <a href="epreuves.html" class="btn-mes-epreuves">📝 Mes épreuves</a>
+      <button class="btn btn-sm btn-outline-light" onclick="deconnexion()">Déconnexion</button>
+    </div>
+  </nav>
+
+  <div class="container py-4">
+
+    <!-- Bloc hero animé — même famille visuelle que concours.html, accent doré (trophée) -->
+    <div class="resultats-hero">
+      <div class="hero-shape shape-1"></div>
+      <div class="hero-shape shape-2"></div>
+      <div class="hero-shape shape-3"></div>
+      <h2>🏆 Mes résultats</h2>
+      <p>Retrouvez ici les résultats publiés de vos concours. Un concours n'apparaît que si l'administration a validé la publication de ses résultats.</p>
+    </div>
+
+    <p class="section-title mb-3">Résultats de concours</p>
+
+    <!-- Rempli par mes_resultats.js : écran A (liste des barres) ou écran B (détail d'un concours) -->
+    <div id="liste-resultats"></div>
+
+  </div>
+
+  <script src="js/mes_resultats.js"></script>
+</body>
+</html>

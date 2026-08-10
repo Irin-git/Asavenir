@@ -383,6 +383,110 @@ table td {
   border: 1px solid var(--beige);
 }
 
+/* ==========================================================================
+   ⚠️ NOUVEAU — Passerelle Dashboard → Résultats
+   Bouton "Voir les résultats de ce concours" affiché sous les stats.
+   Accent violet pour bien le distinguer des boutons d'action standards.
+   ========================================================================== */
+.btn-voir-resultats {
+  background: linear-gradient(90deg, #7C6FED, #5B4FD1);
+  box-shadow: 0 8px 18px rgba(124, 111, 237, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-voir-resultats:hover {
+  box-shadow: 0 12px 24px rgba(91, 79, 209, 0.32);
+}
+
+/* Léger balayage lumineux, cohérent avec le style déjà utilisé côté jury */
+.btn-voir-resultats::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 35%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.45), transparent);
+  transform: skewX(-20deg);
+  animation: sweep-voir-resultats 3.4s ease-in-out infinite;
+}
+
+@keyframes sweep-voir-resultats {
+  0%   { left: -60%; }
+  55%  { left: 130%; }
+  100% { left: 130%; }
+}
+
+/* ==========================================================================
+   ⚠️ NOUVEAU — Zone de publication des résultats (section Résultats)
+   Badge d'état (publié / non publié) + bouton "Publier"
+   ========================================================================== */
+.publication-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+  animation: card-rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.badge-publication {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.badge-publication-ok {
+  background: var(--emerald-soft);
+  color: var(--emerald-dark);
+}
+
+/* Petit pouls discret tant que ce n'est pas publié, pour attirer l'oeil de l'admin */
+.badge-publication-attente {
+  background: #FBF1E0;
+  color: var(--beige-dark);
+  border: 1px solid var(--beige);
+  animation: pulse-attente 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-attente {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 168, 95, 0.35); }
+  50%      { box-shadow: 0 0 0 6px rgba(217, 168, 95, 0); }
+}
+
+/* Bouton "Publier les résultats" — accent terracotta pour signaler une action
+   irréversible et importante, avec balayage lumineux animé */
+#btnPublierResultats {
+  background: linear-gradient(90deg, #E0784A, #C25B30);
+  box-shadow: 0 8px 18px rgba(224, 120, 74, 0.28);
+  position: relative;
+  overflow: hidden;
+}
+
+#btnPublierResultats:hover {
+  box-shadow: 0 12px 24px rgba(194, 91, 48, 0.35);
+}
+
+#btnPublierResultats::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -60%;
+  width: 35%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent);
+  transform: skewX(-20deg);
+  animation: sweep-publier 2.8s ease-in-out infinite;
+}
+
+@keyframes sweep-publier {
+  0%   { left: -60%; }
+  50%  { left: 130%; }
+  100% { left: 130%; }
+}
+
 @media (max-width: 900px) {
   .dashboard-hero .hero-shape { display: none; }
 }

@@ -11,6 +11,7 @@
 </head>
 <body>
 
+  <!-- Navbar, structure identique à l'admin -->
   <nav class="navbar">
     <div class="brand-badge">
       <div class="glyph">A</div>
@@ -21,91 +22,123 @@
     </div>
     <div class="jury-user-zone">
       <span class="jury-badge-name" id="nomJury"></span>
-      <button class="btn-logout-jury" onclick="deconnexion()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Déconnexion
+      <button class="btn-corriger-nav" onclick="ouvrirSelectionJury()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Corriger une épreuve
       </button>
+      <button class="btn btn-sm btn-outline-light" onclick="deconnexion()">Déconnexion</button>
     </div>
   </nav>
 
-  <div class="jury-hero">
-    <div class="hero-shape shape-1"></div>
-    <div class="hero-shape shape-2"></div>
-    <div class="hero-shape shape-3"></div>
-    <span class="eyebrow">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-      Correction anonyme
-    </span>
-    <h2>Votre espace de correction</h2>
-    <p>Donnez votre avis sur les candidatures et corrigez les copies en toute impartialité — chaque copie reste anonyme jusqu'à la publication des résultats.</p>
-  </div>
+  <div id="vuePrincipaleJury">
 
-  <div class="container-jury">
-
-    <div class="form-card" id="cardAffectationsJury">
-      <div class="card-title-jury">
-        <span class="icon-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </span>
-        Vos affectations
-      </div>
-      <div id="bandeauAffectationsJury">
-        <p class="text-muted">Chargement des affectations...</p>
+    <div class="jury-hero">
+      <div class="hero-shape shape-1"></div>
+      <div class="hero-shape shape-2"></div>
+      <div class="hero-shape shape-3"></div>
+      <div class="hero-shape shape-4"></div>
+      <h2>Bienvenue, <span id="heroNomJury">Jury</span></h2>
+      <p>Examinez les dossiers de candidature qui vous sont confiés et corrigez les copies en toute impartialité — chaque copie reste anonyme jusqu'à la publication des résultats.</p>
+      <div class="hero-stats">
+        <span class="hero-stat-pill" id="pillAffectations"><strong>—</strong> concours affectés</span>
+        <span class="hero-stat-pill" id="pillCandidatures"><strong>—</strong> dossiers en attente d'avis</span>
       </div>
     </div>
 
-  <div class="container-jury">
+    <div class="container-jury">
 
-    <div class="form-card">
-      <div class="card-title-jury">
-        <span class="icon-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        </span>
-        Candidatures à examiner
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="table-jury">
-          <thead>
-            <tr>
-              <th>#</th><th>Candidat</th><th>Concours</th><th>Date</th><th>Avis</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tableauCandidaturesJury">
-            <tr><td colspan="6" class="text-center text-muted py-4">Chargement...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="form-card">
-      <div class="card-title-jury">
-        <span class="icon-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </span>
-        Sélectionner une épreuve à corriger
-      </div>
-      <div class="row g-3" style="display:flex; gap:1rem; flex-wrap:wrap;">
-        <div style="flex:1; min-width:220px;">
-          <label class="form-label-jury">Concours</label>
-          <select class="form-select-jury" id="selectConcoursJury" onchange="chargerEpreuvesJury()">
-            <option value="">Chargement...</option>
-          </select>
+      <div class="form-card">
+        <div class="card-title-jury">
+          <span class="icon-box color-navy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          Vos affectations
         </div>
-        <div style="flex:1; min-width:220px;">
-          <label class="form-label-jury">Épreuve</label>
-          <select class="form-select-jury" id="selectEpreuveJury" onchange="chargerReponsesJury()">
-            <option value="">Sélectionnez d'abord un concours</option>
-          </select>
+        <div id="bandeauAffectationsJury">
+          <p class="text-muted text-center">Chargement des affectations...</p>
         </div>
       </div>
+
+      <div class="form-card">
+        <div class="card-title-jury">
+          <span class="icon-box color-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          Candidatures à examiner
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="table-jury">
+            <thead>
+              <tr>
+                <th>#</th><th>Candidat</th><th>Concours</th><th>Date</th><th>Avis</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableauCandidaturesJury">
+              <tr><td colspan="6" class="text-center text-muted py-4">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Overlay de sélection, ouvert via le bouton "Corriger une épreuve" -->
+  <div class="overlay-selection" id="overlaySelectionJury" style="display:none;">
+    <div class="overlay-blob blob-1"></div>
+    <div class="overlay-blob blob-2"></div>
+    <div class="overlay-blob blob-3"></div>
+
+    <div class="overlay-panel">
+      <button class="btn-close-overlay" onclick="fermerSelectionJury()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <span class="overlay-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        Nouvelle correction
+      </span>
+      <h3>Choisissez une épreuve</h3>
+      <p class="overlay-desc">Seules les épreuves approuvées et pour lesquelles vous êtes affecté apparaissent ici.</p>
+
+      <label class="form-label-jury">Concours</label>
+      <select class="form-select-jury" id="selectConcoursJury" onchange="chargerEpreuvesJury()">
+        <option value="">Chargement...</option>
+      </select>
+
+      <label class="form-label-jury">Épreuve</label>
+      <select class="form-select-jury" id="selectEpreuveJury">
+        <option value="">Sélectionnez d'abord un concours</option>
+      </select>
+
+      <button class="btn-lancer-correction" id="btnLancerCorrection" onclick="chargerReponsesJury()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Commencer la correction
+      </button>
+    </div>
+  </div>
+
+  <!-- Écran de correction, affiché en plein cadre -->
+  <div id="vueCorrectionJury" style="display:none;">
+
+    <div class="correction-header">
+      <button class="btn-retour-jury" onclick="retourVueJury()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour
+      </button>
+      <div class="correction-title">
+        <span class="eyebrow">Correction en cours</span>
+        <span class="titre" id="titreEpreuveCorrection">Épreuve</span>
+      </div>
     </div>
 
-    <div id="alertMsgJury"></div>
-    <div id="progressCopiesJury"></div>
-    <div id="zoneReponsesJury"></div>
+    <div class="container-jury">
+      <div id="alertMsgJury"></div>
+      <div id="progressCopiesJury"></div>
+      <div id="zoneReponsesJury"></div>
+    </div>
 
   </div>
 
-  <script src="js/jury.js?v=3"></script>
+  <script src="js/jury.js?v=5"></script>
 </body>
 </html>

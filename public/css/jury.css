@@ -1,9 +1,4 @@
-/* =========================================================
-   jury.css — Espace Jury
-   Même système que admin.css : navy + émeraude dominant
-   Accent signature de cette page : terracotta (avis consultatif)
-   + jauge de progression des copies restantes
-   ========================================================= */
+/* jury.css — Espace Jury v2, navbar admin-identique + animations */
 
 :root {
   --navy: #0A1F44;
@@ -14,10 +9,13 @@
   --emerald-soft: #E3FBF3;
   --beige: #F0C48A;
   --beige-dark: #D9A85F;
+  --beige-soft: #FBF1E0;
   --terracotta: #E0703D;
   --terracotta-dark: #B85A2E;
   --terracotta-soft: #FDEEE4;
-  --gold: #E0A72E;
+  --violet: #8B7CF6;
+  --violet-dark: #6C56E0;
+  --violet-soft: #F1EEFF;
   --white: #FFFFFF;
   --ink: #10203F;
   --ink-soft: #5B6B8C;
@@ -36,68 +34,123 @@ body {
   color: var(--ink);
   margin: 0;
 }
-h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', sans-serif; }
 
-/* ===== Barre du haut (identique à admin.css) ===== */
+/* ===== Navbar, copiée sur celle de l'admin ===== */
 .navbar {
   background: linear-gradient(100deg, var(--navy) 0%, var(--navy-deep) 100%);
   box-shadow: 0 4px 20px rgba(10, 31, 68, 0.15);
   padding: 1rem 1.6rem;
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
 }
 .brand-badge { display: flex; align-items: center; gap: 10px; }
 .brand-badge .glyph {
   width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--terracotta), var(--gold));
+  background: linear-gradient(135deg, var(--blue-vivid), var(--emerald));
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--navy-deep); font-size: 16px;
-  flex-shrink: 0;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  color: var(--navy-deep); font-size: 16px; flex-shrink: 0;
 }
 .brand-badge .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-badge .brand-text .name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.02rem; color: var(--white); }
 .brand-badge .brand-text .tag { font-size: 10.5px; color: var(--beige); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 
-.jury-user-zone { display: flex; align-items: center; gap: 1rem; }
-.jury-badge-name {
-  color: var(--white); font-weight: 600; font-size: 0.85rem;
-  background: rgba(255,255,255,0.08); padding: 0.4rem 0.9rem; border-radius: 999px;
-}
-.btn-logout-jury {
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: var(--white);
-  border-radius: 999px; padding: 0.5rem 1.05rem; font-size: 13px; font-weight: 600;
-  display: flex; align-items: center; gap: 0.4rem; transition: all 0.25s ease;
-}
-.btn-logout-jury:hover { background: var(--danger); border-color: var(--danger); }
+.jury-user-zone { display: flex; align-items: center; gap: 0.9rem; }
+.jury-badge-name { color: var(--white); font-size: 14px; }
 
-/* ===== Hero ===== */
+/* Bouton "Corriger une épreuve", signature violet animée */
+.btn-corriger-nav {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--violet), var(--violet-dark));
+  background-size: 200% 200%;
+  color: var(--white);
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.15rem;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  animation: gradient-shift 4s ease infinite, pulse-glow 2.4s ease-in-out infinite;
+  transition: transform 0.2s ease;
+}
+.btn-corriger-nav:hover { transform: translateY(-2px) scale(1.03); }
+.btn-corriger-nav::after {
+  content: '';
+  position: absolute; top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
+  transform: skewX(-20deg);
+  animation: shimmer-sweep 3s ease-in-out infinite;
+}
+
+/* Bouton déconnexion, identique visuellement au style Bootstrap outline-light de l'admin */
+.btn { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; border-radius: 6px; font-weight: 500; }
+.btn-sm { padding: 0.35rem 0.9rem; font-size: 13px; }
+.btn-outline-light {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.55);
+  color: var(--white);
+  border-radius: 999px;
+  transition: all 0.25s ease;
+}
+.btn-outline-light:hover { background: var(--emerald); border-color: var(--emerald); transform: translateY(-1px); }
+
+/* ===== Hero, enrichi + dégradé animé ===== */
 .jury-hero {
   position: relative;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--navy) 0%, #0C2A5C 55%, var(--navy-deep) 100%);
-  padding: 2rem 2.2rem;
+  background: linear-gradient(135deg, var(--navy) 0%, #0C2A5C 45%, var(--violet-dark) 80%, var(--navy-deep) 100%);
+  background-size: 300% 300%;
+  animation: gradient-shift 12s ease infinite;
+  padding: 2.2rem 2.2rem;
   margin: 1.8rem 1.5rem 1.6rem;
   overflow: hidden;
   color: var(--white);
 }
 .jury-hero .hero-shape { position: absolute; border-radius: 50%; filter: blur(2px); opacity: 0.35; pointer-events: none; }
-.jury-hero .shape-1 { width: 160px; height: 160px; background: radial-gradient(circle, var(--terracotta), transparent 70%); top: -50px; right: 60px; animation: float-a 7s ease-in-out infinite; }
-.jury-hero .shape-2 { width: 110px; height: 110px; background: radial-gradient(circle, var(--gold), transparent 70%); bottom: -30px; right: 220px; animation: float-b 9s ease-in-out infinite; }
-.jury-hero .shape-3 { width: 90px; height: 90px; background: radial-gradient(circle, var(--emerald), transparent 70%); top: 20px; right: 340px; animation: float-a 8s ease-in-out infinite reverse; }
+.jury-hero .shape-1 { width: 160px; height: 160px; background: radial-gradient(circle, var(--emerald), transparent 70%); top: -50px; right: 60px; animation: float-a 7s ease-in-out infinite; }
+.jury-hero .shape-2 { width: 110px; height: 110px; background: radial-gradient(circle, var(--beige), transparent 70%); bottom: -30px; right: 220px; animation: float-b 9s ease-in-out infinite; }
+.jury-hero .shape-3 { width: 90px; height: 90px; background: radial-gradient(circle, var(--terracotta), transparent 70%); top: 20px; right: 340px; animation: float-a 8s ease-in-out infinite reverse; }
+.jury-hero .shape-4 { width: 70px; height: 70px; background: radial-gradient(circle, var(--violet), transparent 70%); bottom: 30px; right: 60px; animation: float-b 10s ease-in-out infinite reverse; }
 @keyframes float-a { 0%,100% { transform: translate(0,0);} 50% { transform: translate(-14px,18px);} }
 @keyframes float-b { 0%,100% { transform: translate(0,0);} 50% { transform: translate(12px,-16px);} }
+@keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
-.jury-hero .eyebrow {
-  position: relative; display: inline-flex; align-items: center; gap: 8px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
-  color: var(--terracotta); margin-bottom: 0.5rem;
+.jury-hero h2 { position: relative; font-size: 1.55rem; font-weight: 600; margin: 0 0 0.4rem; }
+.jury-hero p { position: relative; color: #C3CFE8; font-size: 0.92rem; margin: 0 0 1.2rem; max-width: 560px; }
+
+.hero-stats { position: relative; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.hero-stat-pill {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0; transform: translateY(8px);
+  animation: fade-up 0.5s ease forwards;
 }
-.jury-hero .eyebrow svg { color: #F0A876; }
-.jury-hero h2 { position: relative; font-size: 1.5rem; font-weight: 600; margin: 0 0 0.4rem; }
-.jury-hero p { position: relative; color: #AFC0E0; font-size: 0.92rem; margin: 0; max-width: 520px; }
+.hero-stat-pill:nth-child(1) { animation-delay: 0.1s; }
+.hero-stat-pill:nth-child(2) { animation-delay: 0.25s; }
+.hero-stat-pill strong { color: var(--beige); }
+@keyframes fade-up { to { opacity: 1; transform: translateY(0); } }
 
-.container-jury { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem 3rem; position: relative; }
+.container-jury { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem 3rem; }
 
-/* ===== Cards ===== */
+/* ===== Cartes ===== */
 .form-card {
   background: var(--white);
   border-radius: var(--radius-lg);
@@ -107,9 +160,11 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
   margin-bottom: 1.6rem;
   opacity: 0; transform: translateY(14px);
   animation: card-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
+.form-card:hover { box-shadow: 0 10px 30px rgba(10, 31, 68, 0.1); }
 .form-card:nth-of-type(1) { animation-delay: 0.05s; }
-.form-card:nth-of-type(2) { animation-delay: 0.15s; }
+.form-card:nth-of-type(2) { animation-delay: 0.18s; }
 @keyframes card-rise { to { opacity: 1; transform: translateY(0); } }
 
 .card-title-jury {
@@ -118,10 +173,36 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 }
 .card-title-jury .icon-box {
   width: 34px; height: 34px; min-width: 34px; border-radius: 10px;
-  background: var(--terracotta); color: var(--white);
-  display: flex; align-items: center; justify-content: center;
+  color: var(--white); display: flex; align-items: center; justify-content: center;
+  transition: transform 0.3s ease;
 }
+.form-card:hover .card-title-jury .icon-box { transform: rotate(-6deg) scale(1.06); }
 .card-title-jury .icon-box svg { width: 17px; height: 17px; }
+
+.icon-box.color-navy { background: var(--navy); }
+.icon-box.color-blue { background: var(--blue-vivid); }
+.icon-box.color-emerald { background: var(--emerald); }
+.icon-box.color-violet { background: var(--violet); }
+.icon-box.color-terracotta { background: var(--terracotta); }
+
+/* Affectations, centrées et toujours centrées peu importe le nombre */
+.affectations-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  text-align: center;
+}
+.affectations-tags .badge-avis {
+  opacity: 0; transform: scale(0.85);
+  animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.affectations-tags .badge-avis:nth-child(1) { animation-delay: 0.05s; }
+.affectations-tags .badge-avis:nth-child(2) { animation-delay: 0.12s; }
+.affectations-tags .badge-avis:nth-child(3) { animation-delay: 0.19s; }
+.affectations-tags .badge-avis:nth-child(4) { animation-delay: 0.26s; }
+.affectations-tags .badge-avis:nth-child(5) { animation-delay: 0.33s; }
+@keyframes badge-pop { to { opacity: 1; transform: scale(1); } }
 
 /* ===== Tableau candidatures ===== */
 .table-jury { width: 100%; border-collapse: separate; border-spacing: 0 0.5rem; }
@@ -129,12 +210,8 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
   text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em;
   color: var(--ink-soft); font-weight: 700; padding: 0 1rem 0.5rem; border: none;
 }
-.table-jury tbody tr {
-  background: #FAFBFD;
-  border: 1px solid var(--border);
-  transition: all 0.2s ease;
-}
-.table-jury tbody tr:hover { border-color: var(--terracotta); background: var(--terracotta-soft); transform: scale(1.004); }
+.table-jury tbody tr { background: #FAFBFD; border: 1px solid var(--border); transition: all 0.25s ease; }
+.table-jury tbody tr:hover { border-color: var(--beige-dark); background: var(--beige-soft); transform: scale(1.006); }
 .table-jury tbody td { padding: 0.85rem 1rem; border: none; vertical-align: middle; font-size: 0.88rem; }
 .table-jury tbody tr td:first-child { border-radius: 12px 0 0 12px; border-left: 1px solid var(--border); }
 .table-jury tbody tr td:last-child { border-radius: 0 12px 12px 0; border-right: 1px solid var(--border); }
@@ -146,9 +223,10 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 }
 .badge-favorable { background: var(--emerald-soft); color: var(--emerald-dark); }
 .badge-defavorable { background: var(--danger-soft); color: #991B1B; }
-.badge-attente { background: #F1F3F8; color: var(--ink-soft); position: relative; }
+.badge-attente { background: var(--beige-soft); color: var(--beige-dark); position: relative; padding-left: 1.1rem; }
 .badge-attente::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+  content: ''; position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--terracotta);
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -156,7 +234,7 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 .btn-action-jury {
   border: none; border-radius: 999px; padding: 0.4rem 0.75rem; font-size: 11.5px;
   font-weight: 700; margin-right: 0.3rem; transition: all 0.2s ease;
-  display: inline-flex; align-items: center; gap: 0.3rem;
+  display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer;
 }
 .btn-voir { background: var(--navy); color: var(--white); text-decoration: none; }
 .btn-voir:hover { background: var(--blue-vivid); transform: scale(1.05); }
@@ -165,37 +243,108 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 .btn-defavorable { background: var(--danger-soft); color: var(--danger); }
 .btn-defavorable:hover { background: var(--danger); color: var(--white); }
 
-/* ===== Sélecteurs concours/épreuve ===== */
+/* ===== Écran plein cadre : sélection concours/épreuve, ouvert via le bouton navbar ===== */
+.overlay-selection {
+  position: fixed; inset: 0; z-index: 50;
+  background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 40%, var(--violet-dark) 100%);
+  background-size: 250% 250%;
+  animation: gradient-shift 10s ease infinite;
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem;
+}
+.overlay-selection .overlay-blob {
+  position: absolute; border-radius: 50%; filter: blur(6px); opacity: 0.3; pointer-events: none;
+}
+.overlay-selection .blob-1 { width: 260px; height: 260px; background: radial-gradient(circle, var(--emerald), transparent 70%); top: -60px; left: -60px; animation: float-a 9s ease-in-out infinite; }
+.overlay-selection .blob-2 { width: 220px; height: 220px; background: radial-gradient(circle, var(--terracotta), transparent 70%); bottom: -50px; right: -40px; animation: float-b 11s ease-in-out infinite; }
+.overlay-selection .blob-3 { width: 160px; height: 160px; background: radial-gradient(circle, var(--beige), transparent 70%); bottom: 20%; left: 10%; animation: float-a 8s ease-in-out infinite reverse; }
+
+.overlay-panel {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 2.2rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+  opacity: 0; transform: translateY(20px) scale(0.97);
+  animation: panel-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes panel-in { to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.overlay-panel .overlay-eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  color: var(--violet-dark); margin-bottom: 0.3rem; display: flex; align-items: center; gap: 6px;
+}
+.overlay-panel h3 { font-size: 1.25rem; font-weight: 700; color: var(--navy); margin: 0 0 0.4rem; }
+.overlay-panel p.overlay-desc { color: var(--ink-soft); font-size: 0.88rem; margin: 0 0 1.4rem; }
+
+.btn-close-overlay {
+  position: absolute; top: 1.2rem; right: 1.2rem;
+  background: #F1F3F8; border: none; border-radius: 50%;
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--ink-soft); transition: all 0.2s ease;
+}
+.btn-close-overlay:hover { background: var(--danger-soft); color: var(--danger); transform: rotate(90deg); }
+
+.btn-lancer-correction {
+  position: relative; overflow: hidden;
+  width: 100%; margin-top: 1.4rem;
+  background: linear-gradient(90deg, var(--emerald), var(--blue-vivid), var(--violet));
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+  color: var(--white); border: none; border-radius: var(--radius-md);
+  padding: 0.9rem; font-weight: 700; font-size: 0.95rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  cursor: pointer; transition: transform 0.2s ease;
+  box-shadow: 0 10px 24px rgba(47,111,237,0.28);
+}
+.btn-lancer-correction:hover { transform: translateY(-2px); }
+.btn-lancer-correction:disabled { opacity: 0.5; cursor: not-allowed; animation: none; transform: none; }
+
+/* ===== Sélecteurs concours / épreuve (réutilisés dans l'overlay) ===== */
 .form-select-jury {
   border-radius: var(--radius-md); border: 1.5px solid var(--border);
   padding: 0.7rem 1rem; font-weight: 500; width: 100%;
-  background: #FAFBFD; transition: all 0.2s ease;
+  background: #FAFBFD; transition: all 0.2s ease; margin-bottom: 1rem;
 }
-.form-select-jury:focus { border-color: var(--terracotta); box-shadow: 0 0 0 3px rgba(224,112,61,0.14); outline: none; }
+.form-select-jury:focus { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139,124,246,0.16); outline: none; }
 .form-label-jury { font-weight: 600; margin-bottom: 0.5rem; color: var(--navy); font-size: 0.85rem; display: block; }
 
-/* ===== Jauge de progression (signature de la page) ===== */
+/* ===== Écran de correction dédié ===== */
+.correction-header {
+  display: flex; align-items: center; gap: 1rem; margin: 1.8rem 1.5rem 1.4rem; flex-wrap: wrap;
+}
+.btn-retour-jury {
+  background: var(--white); border: 1.5px solid var(--border); color: var(--navy);
+  border-radius: 999px; padding: 0.55rem 1.1rem; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 0.4rem; cursor: pointer; transition: all 0.2s ease;
+}
+.btn-retour-jury:hover { border-color: var(--terracotta); color: var(--terracotta-dark); transform: translateX(-3px); }
+.correction-title { display: flex; flex-direction: column; }
+.correction-title .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); font-weight: 700; }
+.correction-title .titre { font-weight: 700; color: var(--navy); font-size: 1.1rem; }
+
 .progress-copies {
   display: flex; align-items: center; gap: 0.9rem;
-  background: #FAFBFD; border: 1px solid var(--border);
+  background: var(--white); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 0.8rem 1.1rem; margin-bottom: 1.2rem;
 }
-.progress-copies .track {
-  flex: 1; height: 8px; border-radius: 999px; background: var(--border); overflow: hidden;
-}
+.progress-copies .track { flex: 1; height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
 .progress-copies .fill {
   height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg, var(--terracotta), var(--gold));
+  background: linear-gradient(90deg, var(--violet), var(--blue-vivid), var(--emerald));
+  background-size: 200% 100%;
+  animation: gradient-shift 3s ease infinite;
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .progress-copies .count { font-weight: 700; font-size: 0.82rem; color: var(--navy); white-space: nowrap; }
 
-/* ===== Copie à corriger ===== */
 .reponse-card-jury {
   background: var(--white); border-radius: var(--radius-lg); padding: 2rem;
   box-shadow: 0 4px 20px rgba(10, 31, 68, 0.05);
   border: 1px solid var(--border);
-  border-top: 4px solid var(--terracotta);
+  border-top: 4px solid var(--violet);
   opacity: 0; transform: translateY(10px) scale(0.99);
   animation: card-flip-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -203,27 +352,38 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 
 .copie-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.5rem; font-weight: 700; color: var(--navy); }
 .copie-anon-tag {
-  font-size: 11px; font-weight: 700; color: var(--terracotta-dark);
-  background: var(--terracotta-soft); padding: 0.28rem 0.75rem; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: var(--violet-dark);
+  background: var(--violet-soft); padding: 0.28rem 0.75rem; border-radius: 999px;
   display: inline-flex; align-items: center; gap: 0.3rem;
 }
-.question-block { margin-bottom: 1.75rem; padding-bottom: 1.5rem; border-bottom: 1px dashed var(--border); }
+.question-block {
+  margin-bottom: 1.75rem; padding-bottom: 1.5rem; border-bottom: 1px dashed var(--border);
+  opacity: 0; transform: translateY(6px);
+  animation: fade-up 0.4s ease forwards;
+}
+.question-block:nth-child(1) { animation-delay: 0.05s; }
+.question-block:nth-child(2) { animation-delay: 0.12s; }
+.question-block:nth-child(3) { animation-delay: 0.19s; }
+.question-block:nth-child(4) { animation-delay: 0.26s; }
 .question-label { font-weight: 700; font-size: 12.5px; color: var(--navy); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.reponse-text { color: var(--ink-soft); background: #FAFBFD; border: 1px solid var(--border); padding: 0.9rem 1.1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.9rem; }
+.reponse-text { color: var(--ink-soft); background: var(--beige-soft); border: 1px solid var(--beige); padding: 0.9rem 1.1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.9rem; }
 .input-note {
   border-radius: 10px; border: 1.5px solid var(--border); padding: 0.6rem 0.9rem;
   max-width: 140px; font-weight: 600; transition: all 0.2s ease;
 }
-.input-note:focus { border-color: var(--terracotta); box-shadow: 0 0 0 3px rgba(224,112,61,0.14); outline: none; }
+.input-note:focus { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139,124,246,0.16); outline: none; }
 
 .btn-valider-copie {
-  background: linear-gradient(90deg, var(--terracotta), var(--terracotta-dark));
+  position: relative; overflow: hidden;
+  background: linear-gradient(90deg, var(--violet), var(--terracotta));
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
   color: var(--white); border: none; border-radius: var(--radius-md); padding: 0.85rem 1.8rem;
-  font-weight: 700; display: flex; align-items: center; gap: 0.55rem;
+  font-weight: 700; display: flex; align-items: center; gap: 0.55rem; cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.25s ease;
-  box-shadow: 0 8px 18px rgba(224,112,61,0.25);
+  box-shadow: 0 8px 18px rgba(139,124,246,0.28);
 }
-.btn-valider-copie:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(184,90,46,0.32); }
+.btn-valider-copie:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(108,86,224,0.34); }
 .btn-valider-copie:active { transform: scale(0.97); }
 
 .alert-info-jury {
@@ -236,6 +396,23 @@ h1,h2,h3,h4,h5,h6,.fw-bold { font-family: 'Space Grotesk', sans-serif; }
 .alert-jury-box {
   border-radius: var(--radius-md); padding: 0.9rem 1.1rem; font-size: 0.88rem; font-weight: 600;
   margin-bottom: 1.1rem; display: flex; align-items: center; gap: 0.6rem;
+  opacity: 0; animation: fade-up 0.35s ease forwards;
 }
 .alert-jury-danger { background: var(--danger-soft); color: #991B1B; }
 .alert-jury-success { background: var(--emerald-soft); color: var(--emerald-dark); }
+
+/* ===== Animations globales partagées ===== */
+@keyframes shimmer-sweep { 0% { left: -60%; } 100% { left: 130%; } }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139,124,246,0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(139,124,246,0); }
+}
+
+.text-muted { color: var(--ink-soft); }
+.text-center { text-align: center; }
+.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+
+@media (max-width: 700px) {
+  .jury-hero .hero-shape { display: none; }
+  .overlay-panel { padding: 1.6rem; }
+}
