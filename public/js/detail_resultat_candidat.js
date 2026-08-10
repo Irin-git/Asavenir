@@ -49,47 +49,38 @@ function construireMoyenneAffichage(note) {
 }
 
 // ===== Médaillon SVG pour le bandeau de félicitations =====
-// ⚠️ REDESSINÉ — bordure ondulée générée mathématiquement (boucle trigonométrique)
-// plutôt qu'avec des formes qui se chevauchent, pour un contour net à toute taille.
-// Rubans évasés en diagonale (queue d'aronde) avec liseré blanc en hachures le long
-// du bord extérieur. Un logo de marque (type "swoosh") ne peut pas être reproduit ici
-// car il s'agit d'un élément protégé : une coche blanche épurée le remplace, dans le
-// même esprit minimaliste.
+// Version finale validée : bordure ondulée jaune-orangé (contour calculé par boucle
+// trigonométrique pour un tracé net), intérieur assombri (ambre foncé), motifs blancs
+// réduits (feuilles de laurier, étoiles, coche) tenant entièrement dans la zone sombre,
+// rubans rouges agrandis et écartés (±38°) remontés derrière le médaillon (croisement
+// caché), avec points de couture blancs sur les deux bords de chaque ruban.
 function construireMedaillonSvg() {
-  const cx = 50, cy = 45, rayonBase = 34, amplitude = 4, nbBosses = 14, resolution = 140;
+  const cx = 340, cy = 200, base = 118, amp = 6, bumps = 10, res = 160;
   let contour = '';
-  for (let i = 0; i <= resolution; i++) {
-    const angle = (i / resolution) * Math.PI * 2;
-    const r = rayonBase + amplitude * Math.cos(nbBosses * angle);
-    const x = (cx + r * Math.cos(angle)).toFixed(2);
-    const y = (cy + r * Math.sin(angle)).toFixed(2);
+  for (let i = 0; i <= res; i++) {
+    const angle = (i / res) * Math.PI * 2;
+    const r = base + amp * Math.cos(bumps * angle);
+    const x = (cx + r * Math.cos(angle)).toFixed(1);
+    const y = (cy + r * Math.sin(angle)).toFixed(1);
     contour += (i === 0 ? `M${x},${y} ` : `L${x},${y} `);
   }
   contour += 'Z';
 
   return `
-    <svg class="medaillon-svg" viewBox="-15 0 130 150" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
-      <!-- Rubans rouges évasés en diagonale, terminaison en queue d'aronde, liseré blanc en hachures -->
-      <g transform="rotate(-18 47 74)">
-        <polygon points="40,74 54,74 54,124 47,111 40,124" fill="#E63946" />
-        <line x1="40" y1="74" x2="40" y2="124" stroke="white" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="round" />
+    <svg class="medaillon-svg" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+      <g transform="rotate(-38 340 265)">
+        <polygon points="307,265 373,265 373,470 340,417 307,470" fill="#E63946" />
+        <line x1="310" y1="282" x2="310" y2="453" stroke="white" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" />
+        <line x1="370" y1="282" x2="370" y2="453" stroke="white" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" />
       </g>
-      <g transform="rotate(18 53 74)">
-        <polygon points="46,74 60,74 60,124 53,111 46,124" fill="#D62E3F" />
-        <line x1="60" y1="74" x2="60" y2="124" stroke="white" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="round" />
+      <g transform="rotate(38 340 265)">
+        <polygon points="307,265 373,265 373,470 340,417 307,470" fill="#D62E3F" />
+        <line x1="310" y1="282" x2="310" y2="453" stroke="white" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" />
+        <line x1="370" y1="282" x2="370" y2="453" stroke="white" stroke-width="2" stroke-dasharray="5 6" stroke-linecap="round" />
       </g>
-
-      <!-- Bordure extérieure ondulée, jaune vif légèrement orangé -->
-      <path d="${contour}" fill="#FFA630" />
-
-      <!-- Léger ombrage 2D : disque légèrement décalé en dessous -->
-      <circle cx="${cx}" cy="${cy + 3}" r="29" fill="#9C6B12" opacity="0.5" />
-
-      <!-- Fond intérieur, ambre/doré mat -->
-      <circle cx="${cx}" cy="${cy}" r="29" fill="#C08B2E" />
-
-      <!-- Coche blanche, propre et minimaliste -->
-      <path d="M36 46 L46 56 L68 28" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="${contour}" fill="#FF9F1C" />
+      <circle cx="340" cy="200" r="95" fill="#8C5509" />
+      <path d="M300,204 L328,232 L385,168" stroke="#FFF3D0" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
   `;
 }
