@@ -12,7 +12,7 @@
 
     // On récupère l'URL demandée
     $request = $_SERVER['REQUEST_URI'];
-    $request = str_replace('/concours_fp/api/index.php', '', $request);
+    $request = str_replace('/api/index.php', '', $request);
     $request = explode('/', trim(strtok($request, '?'), '/'))[0];
 
     // On redirige vers le bon fichier
