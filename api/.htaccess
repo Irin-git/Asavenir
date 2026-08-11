@@ -1,5 +1,10 @@
 RewriteEngine On
 
+# Force la transmission du header Authorization à PHP,
+# souvent bloqué par défaut sur les hébergements mutualisés (InfinityFree inclus)
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
 # Si la requête ne correspond pas à un fichier ou dossier réel,
 # on redirige tout vers index.php en conservant le chemin demandé
 # (ex: /api/index.php/auth) pour que PATH_INFO fonctionne correctement.
