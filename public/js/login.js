@@ -7,7 +7,7 @@
 // - forgotEmailView : demande du code de réinitialisation (saisie email)
 // - forgotResetView : saisie du code reçu + nouveau mot de passe
 
-const API = '/concours_fp/api/index.php';
+const API = '/api/index.php';
 
 // ===== Affichage / masquage du mot de passe (icône œil) =====
 function togglePassword(inputId, btn) {
@@ -35,12 +35,10 @@ function showTab(tab) {
     register: document.getElementById('registerForm')
   };
 
-  // On affiche uniquement la vue demandée
   Object.keys(views).forEach(key => {
     views[key].classList.toggle('visible', key === tab);
   });
 
-  // Le switch pilule ne concerne que login/register
   const authTab = document.getElementById('authTab');
   const isAuthTab = (tab === 'login' || tab === 'register');
   authTab.style.display = isAuthTab ? 'flex' : 'none';
@@ -59,21 +57,19 @@ function showTab(tab) {
 
 function showAlert(msg, type = 'danger') {
   const container = document.getElementById('alertMsg');
-  container.innerHTML = ''; // on repart d'un conteneur vide
+  container.innerHTML = '';
 
   const box = document.createElement('div');
   box.className = `alert alert-${type}`;
-  box.textContent = msg; // textContent (pas innerHTML) : le message serveur ne peut jamais injecter de HTML/JS
+  box.textContent = msg;
 
   container.appendChild(box);
 }
 
-// ===== Raccourci pour ouvrir l'écran "mot de passe oublié" depuis le lien de loginForm =====
 function showForgotPassword() {
   showTab('forgotEmail');
 }
 
-// ===== Écran de transition affiché après une connexion réussie =====
 function showSuccessTransition(user) {
   const overlay = document.getElementById('successOverlay');
   const title = document.getElementById('successTitle');
@@ -96,7 +92,6 @@ function showSuccessTransition(user) {
   }, 1600);
 }
 
-// ===== Connexion =====
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -123,7 +118,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   }
 });
 
-// ===== Inscription =====
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -150,7 +144,6 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
   }
 });
 
-// ===== Mot de passe oublié — Étape 1 : demande du code par email =====
 document.getElementById('forgotEmailForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -164,8 +157,6 @@ document.getElementById('forgotEmailForm').addEventListener('submit', async (e) 
     });
     await res.json();
 
-    // On passe à l'écran 2 quelle que soit la réponse du serveur :
-    // sécurité "account enumeration" — ne jamais révéler si l'email existe ou non.
     document.getElementById('forgotResetView').dataset.email = email;
     showTab('forgotReset');
   } catch {
@@ -173,7 +164,6 @@ document.getElementById('forgotEmailForm').addEventListener('submit', async (e) 
   }
 });
 
-// ===== Mot de passe oublié — Étape 2 : vérification du code + nouveau mot de passe =====
 document.getElementById('forgotResetForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -200,7 +190,6 @@ document.getElementById('forgotResetForm').addEventListener('submit', async (e) 
   }
 });
 
-// ===== Si l'utilisateur est déjà connecté, on ne le laisse pas revenir sur cette page =====
 if (localStorage.getItem('token')) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (user.role === 'admin') window.location.href = 'admin.html';

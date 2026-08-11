@@ -1,4 +1,4 @@
-const API = '/concours_fp/api/index.php';
+const API ='/api/index.php';
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -95,7 +95,7 @@ async function chargerDocuments() {
             <div class="doc-filename">${escapeHtml(d.nom_fichier)}</div>
           </div>
         </div>
-        <a href="/concours_fp/${encodeURI(d.chemin)}" target="_blank" class="btn-doc-open">
+        <a href="/${encodeURI(d.chemin)}" target="_blank" class="btn-doc-open">
           ${svgIcons.eye} Ouvrir
         </a>
       </div>

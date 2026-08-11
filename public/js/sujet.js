@@ -4,7 +4,7 @@
 // Ce fichier affiche toutes les questions d'une épreuve avec leurs bonnes réponses
 // C'est une vue de RELECTURE pour l'admin, avant validation d'une épreuve -> pas de modification possible ici
 
-const API = '/concours_fp/api/index.php';
+const API = '/api/index.php';
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 

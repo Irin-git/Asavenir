@@ -7,7 +7,7 @@
 // - surveillance anti-fraude (changement d'onglet, perte de focus, sortie du plein écran)
 // - soumission des réponses (manuelle ou automatique en cas de fraude / temps écoulé)
 
-const API = '/concours_fp/api/index.php';
+const API = '/api/index.php';
 
 let epreuveCommencee = false;        // passe à true seulement après le clic sur "Commencer"
 let epreuveActuelleGlobale = null;   // stocke les infos de l'épreuve (dont la durée, utilisée par le minuteur)

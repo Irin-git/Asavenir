@@ -1,4 +1,4 @@
-const API = '/concours_fp/api/index.php';
+const API = '/api/index.php';
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 

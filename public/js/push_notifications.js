@@ -25,7 +25,7 @@ async function initPushNotifications() {
 
     try {
         // Enregistre le Service Worker
-        const registration = await navigator.serviceWorker.register('/concours_fp/public/sw.js');
+        const registration = await navigator.serviceWorker.register('/sw.js');
 
         // Demande la permission au candidat
         const permission = await Notification.requestPermission();
@@ -56,7 +56,7 @@ async function envoyerAbonnementAuServeur(subscription) {
     const token = localStorage.getItem('token');
     const sub = subscription.toJSON();
 
-    await fetch('/concours_fp/api/index.php/push_subscribe', {
+    await fetch('/api/index.php/push_subscribe', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
