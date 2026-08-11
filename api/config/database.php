@@ -1,14 +1,15 @@
 <?php
 class Database {
-    private $host = "localhost";
-    private $db   = "concours_fp";
-    private $user = "root";
-    private $pass = "";
+    /* Identifiants de production — hébergement InfinityFree */
+    private $host = "sql207.infinityfree.com";
+    private $db   = "if0_42626902_concours_fp";
+    private $user = "if0_42626902";
+    private $pass = "AsavenirProject";
 
     public function connect() {
         try {
             $pdo = new PDO(
-                "mysql:host={$this->host};dbname={$this->db};charset=utf8",
+                "mysql:host={$this->host};dbname={$this->db};charset=utf8mb4",
                 $this->user,
                 $this->pass
             );

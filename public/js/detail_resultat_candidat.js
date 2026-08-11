@@ -184,4 +184,4 @@ async function chargerDetailResultat() {
   }
 }
 
-chargerDetailResultat();
+chargerDetailResultat();  
