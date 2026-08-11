@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Si la requête ne correspond pas à un fichier ou dossier réel,
+# on redirige tout vers index.php en conservant le chemin demandé
+# (ex: /api/index.php/auth) pour que PATH_INFO fonctionne correctement.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L]
