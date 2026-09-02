@@ -6,6 +6,14 @@
 // - passage en plein écran + minuteur
 // - surveillance anti-fraude (changement d'onglet, perte de focus, sortie du plein écran)
 // - soumission des réponses (manuelle ou automatique en cas de fraude / temps écoulé)
+//
+// CORRECTIF (checklist soutenance) : les fonctions natives confirm() et alert()
+// font quitter le mode plein écran automatiquement dans la plupart des navigateurs.
+// Ça déclenchait le "Vigile 3" (fullscreenchange) à tort, causant une fausse exclusion
+// à chaque clic sur "Soumettre" (annulé ou confirmé) et au moment du message de succès.
+// On remplace donc confirm()/alert() par une mini-modale maison qui ne touche jamais
+// au plein écran, et on ajoute un drapeau "epreuveTerminee" pour désarmer les vigiles
+// une fois l'épreuve légitimement finie (succès ou temps écoulé).
 
 const API = '/api/index.php';
 
@@ -13,6 +21,7 @@ let epreuveCommencee = false;        // passe à true seulement après le clic s
 let epreuveActuelleGlobale = null;   // stocke les infos de l'épreuve (dont la durée, utilisée par le minuteur)
 let intervalMinuteur = null;         // référence du setInterval, pour pouvoir l'arrêter proprement
 let epreuveExclue = false;           // empêche de déclencher plusieurs exclusions en même temps
+let epreuveTerminee = false;         // NOUVEAU : true dès que l'épreuve se termine normalement (succès ou temps écoulé) -> désarme les vigiles
 
 const token = localStorage.getItem('token');
 if (!token) {
@@ -27,6 +36,76 @@ const candidatureId = params.get('candidature_id');
 if (!epreuveId) {
   document.getElementById('questions-container').innerHTML =
     '<p class="text-danger">Aucune épreuve spécifiée.</p>';
+}
+
+// ===============================
+// NOUVEAU : mini-modale maison (remplace confirm() et alert())
+// ===============================
+// Elle ne déclenche AUCUN événement fullscreenchange/blur, contrairement aux
+// boîtes de dialogue natives du navigateur. C'est la correction centrale des bugs 1, 2 et 3.
+function afficherModale({ titre, message, boutons }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.6); z-index: 99999;
+      display:flex; align-items:center; justify-content:center;
+    `;
+
+    const boite = document.createElement('div');
+    boite.style.cssText = `
+      background:#fff; border-radius:12px; padding:2rem;
+      max-width:420px; width:90%; text-align:center;
+      font-family: Inter, sans-serif; box-shadow:0 10px 40px rgba(0,0,0,0.3);
+    `;
+
+    const titreEl = document.createElement('h5');
+    titreEl.textContent = titre;
+    titreEl.style.marginBottom = '0.75rem';
+
+    const messageEl = document.createElement('p');
+    messageEl.textContent = message;
+    messageEl.style.color = '#555';
+    messageEl.style.marginBottom = '1.5rem';
+
+    const zoneBoutons = document.createElement('div');
+    zoneBoutons.style.cssText = 'display:flex; gap:0.75rem; justify-content:center;';
+
+    boutons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.textContent = b.texte;
+      btn.className = 'btn ' + (b.style || 'btn-secondary');
+      btn.style.minWidth = '110px';
+      btn.onclick = () => {
+        document.body.removeChild(overlay);
+        resolve(b.valeur);
+      };
+      zoneBoutons.appendChild(btn);
+    });
+
+    boite.appendChild(titreEl);
+    boite.appendChild(messageEl);
+    boite.appendChild(zoneBoutons);
+    overlay.appendChild(boite);
+    document.body.appendChild(overlay);
+  });
+}
+
+// Petit toast de succès non bloquant (remplace alert() côté succès)
+function afficherToastSucces(message, dureeMs = 1800) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed; top:20px; left:50%; transform:translateX(-50%);
+    background:#198754; color:#fff; padding:0.9rem 1.5rem;
+    border-radius:8px; z-index:99999; font-family: Inter, sans-serif;
+    box-shadow:0 6px 20px rgba(0,0,0,0.25);
+  `;
+  document.body.appendChild(toast);
+  return new Promise(resolve => setTimeout(() => {
+    document.body.removeChild(toast);
+    resolve();
+  }, dureeMs));
 }
 
 // ===== Vérifie si le candidat a déjà soumis cette épreuve =====
@@ -92,9 +171,35 @@ async function chargerQuestions() {
         `;
       }
 
+      // NOUVEAU (bug 4) : affichage du média joint à la question (image ou PDF).
+      // q.media contient uniquement le nom du fichier stocké par questions.php
+      // (dossier uploads/medias/), servi ici via une URL statique classique.
+      let mediaHtml = '';
+      if (q.media) {
+        const extension = q.media.split('.').pop().toLowerCase();
+        const urlMedia = `/uploads/medias/${q.media}`;
+
+        if (['jpg', 'jpeg', 'png'].includes(extension)) {
+          mediaHtml = `
+            <div class="mb-3">
+              <img src="${urlMedia}" alt="Document de la question" class="img-fluid rounded border" style="max-height:400px;">
+            </div>
+          `;
+        } else if (extension === 'pdf') {
+          mediaHtml = `
+            <div class="mb-3">
+              <a href="${urlMedia}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+                📄 Voir le document joint (PDF)
+              </a>
+            </div>
+          `;
+        }
+      }
+
       carte.innerHTML = `
         <h6>Question ${index + 1} (${q.points} pts)</h6>
         <p>${q.enonce}</p>
+        ${mediaHtml}
         ${choixHtml}
       `;
 
@@ -138,19 +243,42 @@ function recupererReponsesFormulaire() {
 }
 
 // ===== Soumission manuelle (le candidat clique sur "Soumettre") =====
+// CORRIGÉ (bugs 1 et 2) : confirm() natif remplacé par afficherModale(), qui ne
+// casse jamais le plein écran. Si le candidat annule, rien ne se passe : il reste
+// dans son épreuve, en plein écran, sans exclusion. Si il valide, on désarme les
+// vigiles AVANT toute sortie de plein écran, pour que le succès ne déclenche pas
+// une fausse exclusion (bug 3).
 async function soumettreEpreuve() {
   if (!candidatureId) {
-    alert("Erreur : candidature introuvable.");
+    await afficherModale({
+      titre: 'Erreur',
+      message: 'Candidature introuvable.',
+      boutons: [{ texte: 'OK', style: 'btn-danger', valeur: true }]
+    });
     return;
   }
 
-  const confirmation = confirm("Une fois soumise, l'épreuve ne pourra plus être modifiée. Confirmer ?");
+  const confirmation = await afficherModale({
+    titre: 'Confirmer la soumission',
+    message: "Une fois soumise, l'épreuve ne pourra plus être modifiée. Confirmer ?",
+    boutons: [
+      { texte: 'Annuler', style: 'btn-secondary', valeur: false },
+      { texte: 'Confirmer', style: 'btn-primary', valeur: true }
+    ]
+  });
+
+  // Le candidat a cliqué "Annuler" : on ne fait RIEN d'autre. Pas d'exclusion,
+  // pas de sortie de plein écran, il peut juste revérifier son épreuve tranquillement.
   if (!confirmation) return;
 
   const reponses = recupererReponsesFormulaire();
 
   if (reponses.length === 0) {
-    alert("Vous n'avez répondu à aucune question.");
+    await afficherModale({
+      titre: 'Formulaire vide',
+      message: "Vous n'avez répondu à aucune question.",
+      boutons: [{ texte: 'OK', style: 'btn-primary', valeur: true }]
+    });
     return;
   }
 
@@ -173,24 +301,44 @@ async function soumettreEpreuve() {
     const result = await res.json();
 
     if (res.ok) {
-      alert("Épreuve soumise avec succès ✅");
+      // On désarme les vigiles AVANT toute sortie de plein écran ou redirection,
+      // sinon la sortie de plein écran déclenchée juste après serait interprétée
+      // comme une fraude par le Vigile 3 -> fausse exclusion (bug 3 corrigé ici).
+      epreuveTerminee = true;
+      if (intervalMinuteur) clearInterval(intervalMinuteur);
+
+      await afficherToastSucces("Épreuve soumise avec succès ✅");
+
+      // Sortie propre et volontaire du plein écran, une fois les vigiles désarmés
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+
       window.location.href = 'epreuves.html';
     } else {
-      alert("Erreur : " + result.message);
       document.getElementById('btn-soumettre').disabled = false;
       document.getElementById('btn-soumettre').textContent = "Soumettre l'épreuve";
+      await afficherModale({
+        titre: 'Erreur',
+        message: result.message || "Une erreur est survenue.",
+        boutons: [{ texte: 'OK', style: 'btn-danger', valeur: true }]
+      });
     }
 
   } catch (err) {
     console.error(err);
-    alert("Erreur réseau lors de la soumission.");
     document.getElementById('btn-soumettre').disabled = false;
     document.getElementById('btn-soumettre').textContent = "Soumettre l'épreuve";
+    await afficherModale({
+      titre: 'Erreur réseau',
+      message: "La soumission a échoué. Vérifiez votre connexion et réessayez.",
+      boutons: [{ texte: 'OK', style: 'btn-danger', valeur: true }]
+    });
   }
 }
 
 // ===== Soumission automatique (temps écoulé ou exclusion pour fraude) =====
-// Pas de confirm() ici : le candidat n'a pas son mot à dire, la soumission est forcée
+// Pas de confirmation ici : le candidat n'a pas son mot à dire, la soumission est forcée
 async function soumettreEpreuveAutomatique() {
   if (!candidatureId) return;
 
@@ -224,7 +372,11 @@ function commencerEpreuve() {
       : null;
 
   if (!promesse) {
-    alert("Le mode plein écran n'est pas supporté par votre navigateur.");
+    afficherModale({
+      titre: 'Non supporté',
+      message: "Le mode plein écran n'est pas supporté par votre navigateur.",
+      boutons: [{ texte: 'OK', style: 'btn-danger', valeur: true }]
+    });
     return;
   }
 
@@ -241,7 +393,11 @@ function commencerEpreuve() {
 
     demarrerMinuteur();
   }).catch(err => {
-    alert("Vous devez accepter le mode plein écran pour passer l'épreuve.");
+    afficherModale({
+      titre: 'Plein écran requis',
+      message: "Vous devez accepter le mode plein écran pour passer l'épreuve.",
+      boutons: [{ texte: 'OK', style: 'btn-danger', valeur: true }]
+    });
     console.error(err);
   });
 }
@@ -289,7 +445,7 @@ async function enregistrerExclusion(raison) {
 
 // ===== Déclenche l'exclusion complète du candidat =====
 function exclureCandidat(raison) {
-  if (epreuveExclue) return; // évite de déclencher l'exclusion plusieurs fois d'affilée
+  if (epreuveExclue || epreuveTerminee) return; // NOUVEAU : plus d'exclusion possible une fois l'épreuve terminée normalement
   epreuveExclue = true;
 
   console.warn("Exclusion déclenchée :", raison);
@@ -302,11 +458,13 @@ function exclureCandidat(raison) {
 }
 
 // --- Les 3 "vigiles" anti-fraude ---
-// Chacun surveille un comportement suspect différent pendant l'épreuve
+// Chacun surveille un comportement suspect différent pendant l'épreuve.
+// NOUVEAU : chaque vigile vérifie désormais aussi "!epreuveTerminee", pour ne
+// jamais se déclencher pendant/après une fin d'épreuve légitime (succès ou temps écoulé).
 
 // Vigile 1 : le candidat change d'onglet ou réduit la fenêtre
 document.addEventListener('visibilitychange', function () {
-  if (epreuveCommencee && document.hidden && !epreuveExclue) {
+  if (epreuveCommencee && document.hidden && !epreuveExclue && !epreuveTerminee) {
     exclureCandidat("changement d'onglet ou réduction de fenêtre");
   }
 });
@@ -315,7 +473,7 @@ document.addEventListener('visibilitychange', function () {
 // Le petit délai (300ms) évite les faux positifs lors d'un simple clic sur une notification système
 window.addEventListener('blur', function () {
   setTimeout(() => {
-    if (epreuveCommencee && !document.hasFocus() && !epreuveExclue) {
+    if (epreuveCommencee && !document.hasFocus() && !epreuveExclue && !epreuveTerminee) {
       exclureCandidat("perte de focus (autre application ouverte)");
     }
   }, 300);
@@ -323,7 +481,7 @@ window.addEventListener('blur', function () {
 
 // Vigile 3 : le candidat sort du mode plein écran (touche Échap par exemple)
 document.addEventListener('fullscreenchange', function () {
-  if (epreuveCommencee && !document.fullscreenElement && !epreuveExclue) {
+  if (epreuveCommencee && !document.fullscreenElement && !epreuveExclue && !epreuveTerminee) {
     exclureCandidat("sortie du mode plein écran");
   }
 });
@@ -368,11 +526,25 @@ function afficherMinuteur(secondesRestantes) {
 }
 
 // Appelé automatiquement quand le minuteur arrive à zéro
-function tempsEcoule() {
-  if (epreuveExclue) return; // si déjà exclu, pas besoin de refaire une soumission
+// CORRIGÉ (même logique que soumettreEpreuve) : on désarme les vigiles avant de
+// sortir du plein écran, pour ne pas déclencher une fausse exclusion ici non plus.
+async function tempsEcoule() {
+  if (epreuveExclue || epreuveTerminee) return; // si déjà exclu/terminé, pas besoin de refaire une soumission
 
-  alert("⏰ Le temps imparti est écoulé. Votre épreuve va être soumise automatiquement.");
-  soumettreEpreuveAutomatique();
+  epreuveTerminee = true;
+
+  await afficherModale({
+    titre: 'Temps écoulé',
+    message: "Le temps imparti est écoulé. Votre épreuve va être soumise automatiquement.",
+    boutons: [{ texte: 'OK', style: 'btn-primary', valeur: true }]
+  });
+
+  await soumettreEpreuveAutomatique();
+
+  if (document.fullscreenElement) {
+    await document.exitFullscreen().catch(() => {});
+  }
+
   window.location.href = 'epreuves.html';
 }
 
