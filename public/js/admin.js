@@ -431,26 +431,6 @@ async function voirQuestions(epreuve_id) {
   }
 }
 
-async function validerEpreuve(id, statut) {
-  try {
-    const res = await fetch(`${API}/epreuves`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ id, statut_validation: statut })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      document.getElementById('alertValidation').innerHTML = `<div class="alert alert-success">${escapeHtml(data.message)}</div>`;
-      chargerEpreuvesAttente();
-    } else {
-      document.getElementById('alertValidation').innerHTML = `<div class="alert alert-danger">${escapeHtml(data.message || 'Erreur')}</div>`;
-    }
-  } catch {
-    document.getElementById('alertValidation').innerHTML = '<div class="alert alert-danger">Erreur réseau.</div>';
-  }
-}
-
 // ===== Création de sujet =====
 function showAlertSujet(msg, type = 'danger') {
   document.getElementById('alertMsgSujet').innerHTML =

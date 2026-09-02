@@ -215,16 +215,13 @@ async function chargerEpreuvesJury() {
   });
   const data = await res.json();
 
-  // Seules les épreuves déjà validées par l'admin peuvent être corrigées
-  const approuvees = data.filter(e => e.statut_validation === 'approuvé');
-
-  if (approuvees.length === 0) {
-    selectEpreuve.innerHTML = '<option value="">Aucune épreuve approuvée</option>';
+  if (data.length === 0) {
+    selectEpreuve.innerHTML = '<option value="">Aucune épreuve pour ce concours</option>';
     return;
   }
 
   selectEpreuve.innerHTML = '<option value="">-- Choisir une épreuve --</option>';
-  approuvees.forEach(e => {
+  data.forEach(e => {
     selectEpreuve.innerHTML += `<option value="${e.id}">${escapeHtml(e.titre)} (coeff. ${e.coefficient})</option>`;
   });
 

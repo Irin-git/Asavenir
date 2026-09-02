@@ -15,7 +15,7 @@ if ($method === 'POST') {
     }
 
     $conn = (new Database())->connect();
-    $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut, statut_validation) VALUES (?, ?, ?, ?, ?, 'planifiée', 'approuvé')");
+    $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut) VALUES (?, ?, ?, ?, ?, 'planifiée')");
     $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
     echo json_encode(["message" => "Épreuve créée ✅", "id" => $conn->lastInsertId()]);
 
@@ -37,7 +37,6 @@ if ($method === 'POST') {
             JOIN candidatures cd ON cd.concours_id = e.concours_id
             WHERE cd.user_id = ?
             AND cd.statut = 'validé'
-            AND e.statut_validation = 'approuvé'
             ORDER BY e.date_epreuve";
 
         // Nettoyage : remplace les espaces invisibles par de vrais espaces
@@ -74,23 +73,20 @@ if ($method === 'POST') {
         exit();
     }
 
-    // Liste des épreuves EN ATTENTE de validation (réservé admin/jury, avant qu'elles soient corrigeables)
+    // Liste de TOUTES les épreuves, utilisée par l'écran "Gestion des épreuves" de l'admin
+    // (l'ancien système d'approbation/en_attente a été supprimé, plus utile)
     if ($en_attente) {
-        // Réservé à l'admin et au jury : un candidat n'a pas à voir les épreuves pas encore validées
         if (!in_array($user->role, ['admin', 'jury'])) {
             http_response_code(403);
             echo json_encode(["message" => "Accès refusé"]);
             exit();
         }
 
-        // Correction : la requête ne filtrait pas sur statut_validation et renvoyait TOUTES les épreuves,
-        // pas seulement celles en attente. Ajout du WHERE manquant.
         $stmt = $conn->prepare("
             SELECT e.*, c.titre AS concours_titre,
                    (e.date_epreuve > NOW()) AS modifiable
             FROM epreuves e
             JOIN concours c ON c.id = e.concours_id
-            WHERE e.statut_validation = 'en_attente'
             ORDER BY e.id DESC
         ");
         $stmt->execute();
@@ -134,13 +130,6 @@ if ($method === 'POST') {
     if (!$epreuve_id || !is_numeric($epreuve_id)) {
         http_response_code(400);
         echo json_encode(["message" => "ID épreuve manquant ou invalide"]);
-        exit();
-    }
-
-    if (in_array($user->role, ['jury', 'admin']) && isset($data['statut_validation'])) {
-        $stmt = $conn->prepare("UPDATE epreuves SET statut_validation = ? WHERE id = ?");
-        $stmt->execute([$data['statut_validation'], $epreuve_id]);
-        echo json_encode(["message" => "Épreuve " . $data['statut_validation'] . " ✅"]);
         exit();
     }
 
