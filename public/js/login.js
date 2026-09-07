@@ -36,14 +36,18 @@ function showTab(tab) {
     forgotReset: document.getElementById('forgotResetView'),
     twofa: document.getElementById('twofaView')
   };
-  const forms = {
-    login: document.getElementById('loginForm'),
-    register: document.getElementById('registerForm')
-  };
 
   Object.keys(views).forEach(key => {
     views[key].classList.toggle('visible', key === tab);
   });
+
+  // Bug fix : la règle CSS globale "form { display:none }" exige que CHAQUE formulaire
+  // reçoive explicitement la classe .visible, pas seulement ceux de l'onglet login/register.
+  // Sans ce bloc, les formulaires 2FA et mot de passe oublié restaient invisibles même
+  // quand leur écran parent (.auth-view) était affiché.
+  document.querySelectorAll('.auth-view form').forEach(f => f.classList.remove('visible'));
+  const formActif = views[tab].querySelector('form');
+  if (formActif) formActif.classList.add('visible');
 
   const authTab = document.getElementById('authTab');
   const isAuthTab = (tab === 'login' || tab === 'register');
@@ -51,8 +55,6 @@ function showTab(tab) {
 
   if (isAuthTab) {
     authTab.classList.toggle('reg', tab === 'register');
-    forms.login.classList.toggle('visible', tab === 'login');
-    forms.register.classList.toggle('visible', tab === 'register');
     document.querySelectorAll('#authTab button').forEach((btn, i) => {
       btn.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
     });
