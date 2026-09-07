@@ -14,10 +14,37 @@ if ($method === 'POST') {
         exit();
     }
 
+    if (empty($data['concours_id']) || empty($data['titre']) || empty($data['type']) || empty($data['duree']) || empty($data['date_epreuve'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Champs obligatoires manquants"]);
+        exit();
+    }
+
     $conn = (new Database())->connect();
-    $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, statut) VALUES (?, ?, ?, ?, ?, 'planifiée')");
-    $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve']]);
-    echo json_encode(["message" => "Épreuve créée ✅", "id" => $conn->lastInsertId()]);
+    $conn->beginTransaction();
+
+    try {
+        $stmt = $conn->prepare("INSERT INTO epreuves (concours_id, titre, type, duree, date_epreuve, coefficient, statut) VALUES (?, ?, ?, ?, ?, ?, 'planifiée')");
+        $stmt->execute([$data['concours_id'], $data['titre'], $data['type'], $data['duree'], $data['date_epreuve'], $data['coefficient'] ?: 1]);
+        $epreuve_id = $conn->lastInsertId();
+
+        // === NOUVEAU (Chantier 5) : une ou plusieurs salles peuvent être créées directement avec l'épreuve ===
+        // Chaque salle a un nom et, optionnellement, une capacité (utilisée plus tard pour la répartition automatique)
+        if (!empty($data['salles']) && is_array($data['salles'])) {
+            $stmtSalle = $conn->prepare("INSERT INTO salles_epreuve (epreuve_id, nom_salle, capacite) VALUES (?, ?, ?)");
+            foreach ($data['salles'] as $salle) {
+                if (empty($salle['nom_salle'])) continue;
+                $stmtSalle->execute([$epreuve_id, $salle['nom_salle'], $salle['capacite'] ?: null]);
+            }
+        }
+
+        $conn->commit();
+        echo json_encode(["message" => "Épreuve créée ✅", "id" => $epreuve_id]);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        http_response_code(500);
+        echo json_encode(["message" => "Erreur lors de la création de l'épreuve"]);
+    }
 
 } elseif ($method === 'GET') {
     $conn = (new Database())->connect();
@@ -29,14 +56,22 @@ if ($method === 'POST') {
 
     // Liste des épreuves auxquelles LE candidat connecté peut accéder (via ses candidatures validées)
     if ($mes_epreuves) {
+        // === NOUVEAU (Chantier 5) : ma_salle = la salle qui M'a été assignée pour CETTE épreuve précise
+        // (jointure LEFT car la répartition peut ne pas encore avoir été faite par l'admin)
+        // === NOUVEAU (Chantier 5 - paiement) : AND cd.paiement_effectue = 1 -> bloque l'accès tant que
+        // l'admin n'a pas coché le paiement des frais d'inscription comme reçu
         $sql = "SELECT e.*, c.titre AS concours_titre, cd.id AS candidature_id, (e.date_epreuve <= NOW()) AS est_accessible,
             EXISTS (SELECT 1 FROM reponses r WHERE r.candidature_id = cd.id) AS deja_soumise,
-            EXISTS (SELECT 1 FROM exclusions ex WHERE ex.candidature_id = cd.id AND ex.epreuve_id = e.id) AS est_exclu
+            EXISTS (SELECT 1 FROM exclusions ex WHERE ex.candidature_id = cd.id AND ex.epreuve_id = e.id) AS est_exclu,
+            se.nom_salle AS ma_salle
             FROM epreuves e
             JOIN concours c ON c.id = e.concours_id
             JOIN candidatures cd ON cd.concours_id = e.concours_id
+            LEFT JOIN affectations_salle aff ON aff.epreuve_id = e.id AND aff.candidature_id = cd.id
+            LEFT JOIN salles_epreuve se ON se.id = aff.salle_id
             WHERE cd.user_id = ?
             AND cd.statut = 'validé'
+            AND cd.paiement_effectue = 1
             ORDER BY e.date_epreuve";
 
         // Nettoyage : remplace les espaces invisibles par de vrais espaces
@@ -50,8 +85,6 @@ if ($method === 'POST') {
     }
 
     // NOUVEAU BLOC : concours où le JURY connecté a au moins une épreuve affectée
-    // Utilisé pour peupler le menu déroulant "Concours" côté correction de copies (jury.html),
-    // afin qu'il ne liste jamais un concours où le jury n'a de toute façon aucune épreuve à corriger.
     if ($mes_concours_jury) {
         if ($user->role !== 'jury') {
             http_response_code(403);
@@ -59,7 +92,6 @@ if ($method === 'POST') {
             exit();
         }
 
-        // 🔒 jury_id vient uniquement du token décodé, jamais d'un paramètre client
         $stmt = $conn->prepare("
             SELECT DISTINCT c.id, c.titre
             FROM concours c
@@ -74,7 +106,6 @@ if ($method === 'POST') {
     }
 
     // Liste de TOUTES les épreuves, utilisée par l'écran "Gestion des épreuves" de l'admin
-    // (l'ancien système d'approbation/en_attente a été supprimé, plus utile)
     if ($en_attente) {
         if (!in_array($user->role, ['admin', 'jury'])) {
             http_response_code(403);
@@ -82,9 +113,12 @@ if ($method === 'POST') {
             exit();
         }
 
+        // === NOUVEAU (Chantier 5) : nb_salles, utile pour afficher un badge "3 salles configurées"
+        // dans la liste, sans avoir à ouvrir le détail de chaque épreuve
         $stmt = $conn->prepare("
             SELECT e.*, c.titre AS concours_titre,
-                   (e.date_epreuve > NOW()) AS modifiable
+                   (e.date_epreuve > NOW()) AS modifiable,
+                   (SELECT COUNT(*) FROM salles_epreuve se WHERE se.epreuve_id = e.id) AS nb_salles
             FROM epreuves e
             JOIN concours c ON c.id = e.concours_id
             ORDER BY e.id DESC
@@ -101,10 +135,6 @@ if ($method === 'POST') {
     }
 
     // ===== Étape 2 du cloisonnement jury : filtrage par épreuve précise =====
-    // Un jury qui demande les épreuves d'un concours ne doit voir QUE celles
-    // pour lesquelles il est explicitement désigné (table jury_affectations_epreuve),
-    // même s'il est par ailleurs affecté au concours entier pour les dossiers.
-    // L'admin, lui, continue de tout voir sans restriction (gestion globale).
     if ($user->role === 'jury') {
         $stmt = $conn->prepare("
             SELECT e.*

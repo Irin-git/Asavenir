@@ -77,4 +77,6 @@ async function chargerSujet() {
       </div>
     `;
   }).join('');
+
+  rendreMathDans(container); // Chantier 4
 }

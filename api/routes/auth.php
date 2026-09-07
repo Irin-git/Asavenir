@@ -9,6 +9,45 @@ $secretKey = "concours_fp_secret_2024_plateforme_Madagascar_@#!";
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
 
+// Rôles pour lesquels la double authentification (2FA) par email est obligatoire.
+// Un candidat se connecte directement ; un admin/jury doit valider un code reçu par email.
+const ROLES_2FA = ['admin', 'jury'];
+
+// Construit le token JWT + la réponse de connexion réussie (utilisé par login, verify_2fa et google_login)
+function genererReponseConnexion($user, $secretKey) {
+    $payload = [
+        "id"    => $user['id'],
+        "email" => $user['email'],
+        "role"  => $user['role'],
+        "exp"   => time() + (60 * 60 * 24)
+    ];
+
+    $token = JWT::encode($payload, $secretKey, 'HS256');
+
+    return [
+        "message" => "Connexion réussie ✅",
+        "token"   => $token,
+        "user"    => [
+            "id"    => $user['id'],
+            "nom"   => $user['nom'],
+            "email" => $user['email'],
+            "role"  => $user['role']
+        ]
+    ];
+}
+
+// Génère un code à 6 chiffres, l'enregistre en base et l'envoie par email.
+// Renvoie true/false selon le succès de l'envoi.
+function envoyerCode2FA($conn, $user) {
+    $code = strval(random_int(100000, 999999));
+
+    $insert = $conn->prepare("INSERT INTO two_factor_codes (user_id, code, expire_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+    $insert->execute([$user['id'], $code]);
+
+    require_once __DIR__ . '/../utils/mailer_send.php';
+    return envoyerEmailCode($user['email'], $user['nom'], $code, '2fa');
+}
+
 if ($method === 'POST' && isset($data['action']) && $data['action'] === 'register') {
 
     // Vérification que tous les champs obligatoires sont bien présents avant de continuer
@@ -67,26 +106,157 @@ elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'log
         exit();
     }
 
-    // Le token JWT contient l'identité et le rôle, valable 24h
-    $payload = [
-        "id"    => $user['id'],
-        "email" => $user['email'],
-        "role"  => $user['role'],
-        "exp"   => time() + (60 * 60 * 24)
-    ];
-
-    $token = JWT::encode($payload, $secretKey, 'HS256');
-
-    echo json_encode([
-        "message" => "Connexion réussie ✅",
-        "token"   => $token,
-        "user"    => [
-            "id"    => $user['id'],
-            "nom"   => $user['nom'],
+    // 🔒 2FA obligatoire pour admin/jury : on ne délivre pas le token tout de suite
+    if (in_array($user['role'], ROLES_2FA)) {
+        $envoye = envoyerCode2FA($conn, $user);
+        if (!$envoye) {
+            http_response_code(500);
+            echo json_encode(["message" => "Erreur lors de l'envoi du code de vérification"]);
+            exit();
+        }
+        echo json_encode([
+            "twofa_required" => true,
             "email" => $user['email'],
-            "role"  => $user['role']
-        ]
-    ]);
+            "message" => "Un code de vérification a été envoyé à votre adresse email"
+        ]);
+        exit();
+    }
+
+    // Candidat : connexion directe, comme avant
+    echo json_encode(genererReponseConnexion($user, $secretKey));
+}
+
+elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'verify_2fa') {
+
+    if (empty($data['email']) || empty($data['code'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email et code obligatoires"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$data['email']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user || !in_array($user['role'], ROLES_2FA)) {
+        http_response_code(400);
+        echo json_encode(["message" => "Code invalide ou expiré"]);
+        exit();
+    }
+
+    // Code correspondant, non utilisé, non expiré
+    $stmtCode = $conn->prepare("
+        SELECT id FROM two_factor_codes
+        WHERE user_id = ? AND code = ? AND utilise = 0 AND expire_at > NOW()
+        ORDER BY id DESC LIMIT 1
+    ");
+    $stmtCode->execute([$user['id'], $data['code']]);
+    $twofa = $stmtCode->fetch(PDO::FETCH_ASSOC);
+
+    if (!$twofa) {
+        http_response_code(400);
+        echo json_encode(["message" => "Code invalide ou expiré"]);
+        exit();
+    }
+
+    // Le code est marqué comme utilisé — impossible de le réutiliser (même logique que reset_password)
+    $invalidate = $conn->prepare("UPDATE two_factor_codes SET utilise = 1 WHERE id = ?");
+    $invalidate->execute([$twofa['id']]);
+
+    echo json_encode(genererReponseConnexion($user, $secretKey));
+}
+
+elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'resend_2fa') {
+
+    if (empty($data['email'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email obligatoire"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$data['email']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 🔒 Réponse identique dans tous les cas — évite de révéler si l'email existe ou son rôle
+    if ($user && in_array($user['role'], ROLES_2FA)) {
+        envoyerCode2FA($conn, $user);
+    }
+
+    echo json_encode(["message" => "Si un code était en attente, un nouveau a été envoyé ✅"]);
+}
+
+elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'google_login') {
+
+    if (empty($data['credential'])) {
+        http_response_code(400);
+        echo json_encode(["message" => "Jeton Google manquant"]);
+        exit();
+    }
+
+    // Vérification du jeton directement auprès de Google (pas de librairie lourde nécessaire)
+    $googleConfig = require __DIR__ . '/../config/google.php';
+    $urlVerif = "https://oauth2.googleapis.com/tokeninfo?id_token=" . urlencode($data['credential']);
+    $reponseGoogle = @file_get_contents($urlVerif);
+    $payloadGoogle = $reponseGoogle ? json_decode($reponseGoogle, true) : null;
+
+    if (
+        !$payloadGoogle ||
+        !isset($payloadGoogle['email']) ||
+        ($payloadGoogle['email_verified'] ?? 'false') !== 'true' ||
+        ($payloadGoogle['aud'] ?? '') !== $googleConfig['client_id']
+    ) {
+        http_response_code(401);
+        echo json_encode(["message" => "Authentification Google invalide"]);
+        exit();
+    }
+
+    $email = $payloadGoogle['email'];
+    $nom = $payloadGoogle['name'] ?? explode('@', $email)[0];
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        // Nouveau compte via Google = toujours candidat (comme l'inscription classique)
+        // Mot de passe aléatoire haché : le compte ne sera jamais connecté par mot de passe,
+        // mais la colonne password reste NOT NULL en base.
+        $motDePasseAleatoire = password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
+        $insert = $conn->prepare("INSERT INTO users (nom, email, password, role) VALUES (?, ?, ?, 'candidat')");
+        $insert->execute([$nom, $email, $motDePasseAleatoire]);
+
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // Même règle 2FA que la connexion classique pour les admin/jury liés à un compte Google
+    if (in_array($user['role'], ROLES_2FA)) {
+        $envoye = envoyerCode2FA($conn, $user);
+        if (!$envoye) {
+            http_response_code(500);
+            echo json_encode(["message" => "Erreur lors de l'envoi du code de vérification"]);
+            exit();
+        }
+        echo json_encode([
+            "twofa_required" => true,
+            "email" => $user['email'],
+            "message" => "Un code de vérification a été envoyé à votre adresse email"
+        ]);
+        exit();
+    }
+
+    echo json_encode(genererReponseConnexion($user, $secretKey));
 }
 
 elseif ($method === 'POST' && isset($data['action']) && $data['action'] === 'create_user') {

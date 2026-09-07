@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ma convocation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="css/convocation.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Cette barre disparaît à l'impression (voir convocation.css, règle @media print) -->
+  <nav class="navbar navbar-dark px-3 no-print">
+    <span class="navbar-brand mb-0 h1">🏛️ Ma convocation</span>
+    <div>
+      <a href="epreuves.html" class="btn btn-sm btn-outline-light me-2">← Retour</a>
+      <button class="btn btn-sm btn-light" onclick="window.print()">🖨️ Télécharger / Imprimer</button>
+    </div>
+  </nav>
+
+  <div class="container mt-4 mb-5">
+    <div id="feuilleConvocation" class="feuille-convocation">
+      <p class="text-muted text-center py-5">Chargement de votre convocation...</p>
+    </div>
+  </div>
+
+  <script src="js/convocation.js"></script>
+</body>
+</html>

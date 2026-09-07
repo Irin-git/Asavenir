@@ -1,13 +1,18 @@
 // ===============================
-// login.js — Page de connexion / inscription / mot de passe oublié
+// login.js — Page de connexion / inscription / mot de passe oublié / 2FA / Google
 // ===============================
-// Ce fichier gère 4 écrans dans la carte d'authentification :
+// Ce fichier gère 5 écrans dans la carte d'authentification :
 // - loginView       : connexion (candidat, jury, admin)
 // - registerView    : inscription (candidats uniquement)
 // - forgotEmailView : demande du code de réinitialisation (saisie email)
 // - forgotResetView : saisie du code reçu + nouveau mot de passe
+// - twofaView       : vérification 2FA par email, réservée aux comptes admin/jury
 
 const API = '/api/index.php';
+
+// ⚠️ À remplacer par le Client ID obtenu sur https://console.cloud.google.com/apis/credentials
+// Ce n'est pas un secret (il est visible dans le code source du navigateur), donc pas de risque à l'écrire ici.
+const GOOGLE_CLIENT_ID = "REMPLACER_PAR_VOTRE_CLIENT_ID.apps.googleusercontent.com";
 
 // ===== Affichage / masquage du mot de passe (icône œil) =====
 function togglePassword(inputId, btn) {
@@ -21,14 +26,15 @@ const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" 
 
 const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
 
-// ===== Bascule entre les 4 écrans (login / register / forgotEmail / forgotReset) =====
+// ===== Bascule entre les écrans (login / register / forgotEmail / forgotReset / twofa) =====
 // Le switch pilule (Connexion/Inscription) n'est visible que pour login/register.
 function showTab(tab) {
   const views = {
     login: document.getElementById('loginView'),
     register: document.getElementById('registerView'),
     forgotEmail: document.getElementById('forgotEmailView'),
-    forgotReset: document.getElementById('forgotResetView')
+    forgotReset: document.getElementById('forgotResetView'),
+    twofa: document.getElementById('twofaView')
   };
   const forms = {
     login: document.getElementById('loginForm'),
@@ -92,6 +98,21 @@ function showSuccessTransition(user) {
   }, 1600);
 }
 
+// Traite la réponse d'un endpoint de connexion (login classique OU google_login) :
+// soit un code 2FA vient d'être envoyé (admin/jury), soit la connexion est déjà complète (candidat).
+function traiterReponseConnexion(data) {
+  if (data.twofa_required) {
+    document.getElementById('twofaView').dataset.email = data.email;
+    showTab('twofa');
+    showAlert(data.message || 'Un code de vérification vous a été envoyé.', 'success');
+    return;
+  }
+
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('user', JSON.stringify(data.user));
+  showSuccessTransition(data.user);
+}
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -107,9 +128,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const data = await res.json();
 
     if (res.ok) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      showSuccessTransition(data.user);
+      traiterReponseConnexion(data);
     } else {
       showAlert(data.message || 'Erreur de connexion');
     }
@@ -188,6 +207,86 @@ document.getElementById('forgotResetForm').addEventListener('submit', async (e) 
   } catch {
     showAlert('Impossible de contacter le serveur.');
   }
+});
+
+// ===== Vérification du code 2FA (admin/jury) =====
+document.getElementById('twofaForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById('twofaView').dataset.email;
+  const code = document.getElementById('twofaCode').value;
+
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_2fa', email, code })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      showSuccessTransition(data.user);
+    } else {
+      showAlert(data.message || 'Code invalide ou expiré');
+    }
+  } catch {
+    showAlert('Impossible de contacter le serveur.');
+  }
+});
+
+async function resendTwofaCode() {
+  const email = document.getElementById('twofaView').dataset.email;
+
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resend_2fa', email })
+    });
+    const data = await res.json();
+    showAlert(data.message || 'Code renvoyé.', 'success');
+  } catch {
+    showAlert('Impossible de contacter le serveur.');
+  }
+}
+
+// ===== Connexion avec Google (Google Identity Services) =====
+// handleGoogleCredential reçoit le jeton signé par Google, on le transmet tel quel au backend
+// qui se charge de le vérifier auprès de Google — le frontend ne fait confiance à aucune donnée locale.
+async function handleGoogleCredential(response) {
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'google_login', credential: response.credential })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      traiterReponseConnexion(data);
+    } else {
+      showAlert(data.message || 'Connexion Google impossible');
+    }
+  } catch {
+    showAlert('Impossible de contacter le serveur.');
+  }
+}
+
+window.addEventListener('load', () => {
+  // google est injecté par le script externe accounts.google.com/gsi/client (voir login.html)
+  if (typeof google === 'undefined' || GOOGLE_CLIENT_ID.startsWith('REMPLACER_')) return;
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential
+  });
+
+  google.accounts.id.renderButton(
+    document.getElementById('googleBtnContainer'),
+    { theme: 'outline', size: 'large', width: 320, text: 'continue_with' }
+  );
 });
 
 if (localStorage.getItem('token')) {

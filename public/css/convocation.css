@@ -1,0 +1,100 @@
+:root {
+  --navy: #0A1F44;
+  --navy-deep: #051029;
+  --emerald: #00C896;
+  --emerald-dark: #00A67D;
+  --beige-soft: #F8EFDF;
+  --beige-dark: #C9A574;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--beige-soft);
+}
+
+.navbar {
+  background: linear-gradient(100deg, var(--navy) 0%, var(--navy-deep) 100%) !important;
+}
+
+.feuille-convocation {
+  background: #fff;
+  border-radius: 14px;
+  padding: 2.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+  box-shadow: 0 8px 30px rgba(10, 31, 68, 0.08);
+}
+
+.entete-convocation {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 2px solid var(--beige-dark);
+  padding-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.glyph-convocation {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.titre-plateforme {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 20px;
+}
+
+.sous-titre-plateforme {
+  font-size: 13px;
+  color: #777;
+}
+
+.titre-convocation {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--navy);
+  font-size: 22px;
+  margin-bottom: 1.2rem;
+}
+
+.bloc-infos-candidat {
+  background: var(--beige-soft);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.5rem;
+  font-size: 14px;
+}
+
+.bloc-infos-candidat p { margin-bottom: 0.3rem; }
+
+.tableau-convocation th {
+  background: var(--navy);
+  color: #fff;
+  font-size: 13px;
+}
+
+.tableau-convocation td { font-size: 13px; vertical-align: middle; }
+
+.note-convocation {
+  margin-top: 1.5rem;
+  font-size: 12px;
+  color: #777;
+  font-style: italic;
+}
+
+/* La barre de navigation et ses boutons ne doivent jamais apparaître sur le PDF/impression */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .feuille-convocation { box-shadow: none; padding: 0; }
+}

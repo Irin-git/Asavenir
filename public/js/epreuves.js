@@ -27,6 +27,7 @@ function construireCarteEpreuve(ep) {
         <p class="card-text mb-1"><strong>Type :</strong> ${escapeHtml(ep.type)}</p>
         <p class="card-text mb-1"><strong>Durée :</strong> ${ep.duree} min</p>
         <p class="card-text mb-2"><strong>Date :</strong> ${dateFormatee}</p>
+        ${ep.ma_salle ? `<p class="card-text mb-2"><strong>Salle :</strong> ${escapeHtml(ep.ma_salle)}</p>` : ''}
         ${ep.est_exclu == 1
           ? `<button class="btn btn-dark w-100" disabled>🚫 Exclu(e) de l'épreuve</button>`
           : ep.deja_soumise == 1
@@ -53,8 +54,11 @@ function afficherListeConcours() {
     return;
   }
 
-  // Petit sous-titre d'accroche au-dessus de la liste
-  conteneur.innerHTML = `<p class="sous-titre-ecran">Sélectionnez le concours pour lequel vous souhaitez passer une épreuve.</p>`;
+  // Petit sous-titre d'accroche au-dessus de la liste + lien vers la convocation imprimable (Chantier 5)
+  conteneur.innerHTML = `
+    <p class="sous-titre-ecran">Sélectionnez le concours pour lequel vous souhaitez passer une épreuve.</p>
+    <a href="convocation.html" class="btn btn-outline-primary btn-sm mb-3">📄 Télécharger ma convocation</a>
+  `;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'liste-concours-epreuves';
@@ -117,7 +121,15 @@ async function chargerEpreuves() {
     const epreuves = await res.json();
 
     if (epreuves.length === 0) {
-      conteneur.innerHTML = '<p class="text-muted">Aucune épreuve disponible pour le moment.</p>';
+      // === NOUVEAU (Chantier 5) : si le blocage vient d'un paiement non confirmé,
+      // on le dit clairement plutôt que d'afficher un vague "aucune épreuve"
+      const resCand = await fetch(`${API}/candidatures`, { headers: { 'Authorization': 'Bearer ' + token } });
+      const candidatures = await resCand.json();
+      const enAttenteDePaiement = candidatures.some(c => c.statut === 'validé' && c.frais_montant && c.paiement_effectue != 1);
+
+      conteneur.innerHTML = enAttenteDePaiement
+        ? '<p class="text-warning">⏳ Votre candidature est validée, mais l\'accès aux épreuves est en attente de la confirmation du paiement des frais d\'inscription par l\'administration.</p>'
+        : '<p class="text-muted">Aucune épreuve disponible pour le moment.</p>';
       return;
     }
 

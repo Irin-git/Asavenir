@@ -55,7 +55,23 @@
             break;  
         case 'push_subscribe':
             require 'routes/push_subscribe.php';
-            break;          
+            break;
+        case 'salles_epreuve':
+            // NOUVEAU (Chantier 5) : gestion des salles d'une épreuve
+            require 'routes/salles_epreuve.php';
+            break;
+        case 'affectations_salle':
+            // NOUVEAU (Chantier 5) : répartition des candidats dans les salles
+            require 'routes/affectations_salle.php';
+            break;
+        case 'convocation':
+            // NOUVEAU (Chantier 5) : données pour la convocation imprimable du candidat
+            require 'routes/convocation.php';
+            break;
+        case 'cron_rappels':
+            // NOUVEAU (Chantier 3) : appelé sans JWT par GitHub Actions, protégé par clé secrète
+            require 'cron/rappels_epreuves.php';
+            break;
         default:
             http_response_code(404);
             echo json_encode(["message" => "Route introuvable"]);

@@ -136,6 +136,18 @@
     <!-- Concours en pleine largeur — "Mes candidatures" est maintenant un tiroir (voir plus bas) -->
     <div class="col-concours">
       <p class="section-title mb-3">Concours disponibles</p>
+      <!-- Chantier 4 : filtre par catégorie de poste -->
+      <div class="mb-3" style="max-width: 260px;">
+        <select class="form-select form-select-sm" id="filtreCategorie" onchange="filtrerConcoursParCategorie()">
+          <option value="">Toutes les catégories</option>
+          <option value="Administratif">Administratif</option>
+          <option value="Enseignement">Enseignement</option>
+          <option value="Santé">Santé</option>
+          <option value="Technique">Technique</option>
+          <option value="Sécurité">Sécurité</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
       <div id="loading">Chargement des concours...</div>
       <div id="listeConcours" class="row g-3"></div>
     </div>
@@ -190,6 +202,22 @@
       <div class="d-flex justify-content-end gap-2">
         <button class="btn btn-sm btn-outline-secondary" onclick="fermerModalDocuments()">Plus tard</button>
         <button class="btn btn-sm btn-postuler" onclick="envoyerDocuments()">Envoyer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOUVEAU : Popup Détails du concours — description complète + épreuves (date, heure, coefficient) -->
+  <div id="modalDetailsConcours" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(43,33,22,0.45); z-index:1300; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:14px; padding:24px; width:90%; max-width:560px; max-height:85vh; overflow-y:auto;">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <h6 class="fw-bold mb-0" id="detailsConcoursTitre" style="color:#1a3a6b;"></h6>
+        <button class="btn-close" onclick="fermerModalDetailsConcours()"></button>
+      </div>
+      <div id="detailsConcoursContenu">
+        <p class="text-muted text-center py-3">Chargement...</p>
+      </div>
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-sm btn-outline-secondary" onclick="fermerModalDetailsConcours()">Fermer</button>
       </div>
     </div>
   </div>

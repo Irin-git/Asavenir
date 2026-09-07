@@ -10,6 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="css/admin.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- KaTeX : rendu des formules mathématiques (Chantier 4) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
 
@@ -113,6 +117,31 @@
 
           <p class="section-title">Tableau de bord</p>
 
+          <!-- === NOUVEAU (Chantier 5) : vue globale, tous concours confondus === -->
+          <p class="fw-semibold mb-2" style="color:var(--navy);">🌍 Vue globale de la plateforme</p>
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="stat-card"><div class="num" id="statGlobalConcours">—</div><div class="label">Concours créés</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card"><div class="num" id="statGlobalOuverts">—</div><div class="label">Concours ouverts</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card"><div class="num" id="statGlobalCandidats">—</div><div class="label">Candidats (plateforme)</div></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card"><div class="num text-success" id="statGlobalTaux">—</div><div class="label">Taux de réussite global</div></div>
+            </div>
+          </div>
+          <div class="form-card mb-4">
+            <p class="fw-semibold mb-3">🔝 Concours les plus demandés</p>
+            <div id="listeTopConcours">
+              <p class="text-muted text-center py-2">Chargement...</p>
+            </div>
+          </div>
+
+          <p class="section-title" style="font-size:16px;">Détail par concours</p>
+
           <div class="row g-3 mb-4" id="statsCards">
             <div class="col-md-3">
               <div class="stat-card">
@@ -196,6 +225,17 @@
               <input type="text" class="form-control" id="titre" placeholder="Ex: Concours de recrutement — Enseignants 2026" />
             </div>
             <div class="mb-3">
+              <label class="form-label fw-semibold">Catégorie de poste</label>
+              <select class="form-select" id="categorie">
+                <option value="Administratif">Administratif</option>
+                <option value="Enseignement">Enseignement</option>
+                <option value="Santé">Santé</option>
+                <option value="Technique">Technique</option>
+                <option value="Sécurité">Sécurité</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+            <div class="mb-3">
               <label class="form-label fw-semibold">Description</label>
               <textarea class="form-control" id="description" rows="3" placeholder="Détails sur le concours, conditions, postes disponibles..."></textarea>
             </div>
@@ -221,6 +261,40 @@
               <label class="form-label fw-semibold">Nombre de places disponibles</label>
               <input type="number" class="form-control" id="nbPlaces" min="1" placeholder="Ex: 20" />
               <small class="text-muted">Nombre de candidats qui seront automatiquement admis selon leur classement.</small>
+            </div>
+
+            <!-- === NOUVEAU (Chantier 5) : conditions d'éligibilité === -->
+            <p class="fw-semibold mb-2" style="color:var(--navy);">📋 Conditions d'éligibilité (facultatif)</p>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Diplôme requis</label>
+                <input type="text" class="form-control" id="diplomeRequis" placeholder="Ex: Licence en Droit" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Âge minimum</label>
+                <input type="number" class="form-control" id="ageMin" min="0" placeholder="Ex: 18" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Âge maximum</label>
+                <input type="number" class="form-control" id="ageMax" min="0" placeholder="Ex: 40" />
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Autres conditions</label>
+              <textarea class="form-control" id="conditionsAutres" rows="2" placeholder="Ex: Nationalité malgache, casier judiciaire vierge, aptitude physique..."></textarea>
+            </div>
+
+            <!-- === NOUVEAU (Chantier 5) : frais d'inscription === -->
+            <p class="fw-semibold mb-2" style="color:var(--navy);">💰 Frais d'inscription (facultatif)</p>
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Montant (Ariary)</label>
+                <input type="number" class="form-control" id="fraisMontant" min="0" placeholder="Ex: 5000" />
+              </div>
+              <div class="col-md-8">
+                <label class="form-label fw-semibold">Modalités de paiement</label>
+                <input type="text" class="form-control" id="fraisDescription" placeholder="Ex: À verser au guichet du Trésor Public avant le dépôt du dossier" />
+              </div>
             </div>
 
             <button class="btn-admin btn" onclick="creerConcours()">Publier le concours</button>
@@ -263,11 +337,12 @@
                     <th>Concours</th>
                     <th>Date</th>
                     <th>Statut</th>
+                    <th>Paiement</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="tableauCandidatures">
-                  <tr><td colspan="6" class="text-center text-muted py-4">Chargement...</td></tr>
+                  <tr><td colspan="7" class="text-center text-muted py-4">Chargement...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -379,6 +454,23 @@
                 <input type="datetime-local" class="form-control" id="dateEpreuve" />
               </div>
               <div class="col-12">
+                <!-- === NOUVEAU (Chantier 5) : salles multiples, ajoutées dynamiquement === -->
+                <label class="form-label fw-semibold">Salles d'examen (facultatif — plusieurs possibles)</label>
+                <div id="listeSallesFormulaire"></div>
+                <div class="row g-2 align-items-end mt-1">
+                  <div class="col-md-6">
+                    <input type="text" class="form-control" id="salleNomTemp" placeholder="Ex: Salle B12" />
+                  </div>
+                  <div class="col-md-3">
+                    <input type="number" class="form-control" id="salleCapaciteTemp" placeholder="Capacité (optionnel)" />
+                  </div>
+                  <div class="col-md-3">
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="ajouterSalleFormulaire()">+ Ajouter</button>
+                  </div>
+                </div>
+                <small class="text-muted">Si aucune salle n'est ajoutée, la répartition pourra être configurée plus tard depuis "Gestion des épreuves".</small>
+              </div>
+              <div class="col-12">
                 <button class="btn-admin btn" onclick="creerEpreuveSujet()">✅ Créer l'épreuve</button>
               </div>
             </div>
@@ -409,6 +501,10 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Énoncé</label>
                 <textarea class="form-control" id="enonce" rows="2" placeholder="Écrivez la question ici..."></textarea>
+                <!-- Chantier 4 : insertion de formules mathématiques (LaTeX) -->
+                <div class="mt-2" id="toolbarMathEnonce"></div>
+                <div class="mt-2 p-2 border rounded bg-light" id="apercuMathEnonce" style="min-height:36px;font-size:14px;"></div>
+                <small class="text-muted">Cliquez sur un symbole pour l'insérer dans l'énoncé. L'aperçu ci-dessus affiche le rendu final vu par le candidat.</small>
               </div>
 
               <!-- Uniquement pour le type "étude de cas", géré en JS -->
@@ -586,6 +682,50 @@
   </div>
   <!-- fin container-fluid -->
 
+  <!-- === NOUVEAU (Chantier 5) : panneau Salles & Répartition, overlay simple cohérent avec le style du projet === -->
+  <div id="overlaySalles" class="overlay-panel" style="display:none;">
+    <div class="overlay-panel-content">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-bold" style="color:var(--navy);">🏫 Salles & répartition — <span id="overlaySallesTitreEpreuve"></span></h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick="fermerPanneauSalles()">✖ Fermer</button>
+      </div>
+
+      <div id="alertPanneauSalles"></div>
+
+      <p class="fw-semibold mb-2">Salles configurées</p>
+      <div id="listeSallesPanneau" class="mb-3">
+        <p class="text-muted text-center py-2">Chargement...</p>
+      </div>
+
+      <div class="row g-2 align-items-end mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nom de la salle</label>
+          <input type="text" class="form-control" id="nouvelleSalleNom" placeholder="Ex: Salle B12" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Capacité</label>
+          <input type="number" class="form-control" id="nouvelleSalleCapacite" placeholder="Illimitée si vide" />
+        </div>
+        <div class="col-md-3">
+          <button class="btn-admin btn w-100" onclick="ajouterSallePanneau()">+ Ajouter</button>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <p class="fw-semibold mb-0">Répartition des candidats</p>
+        <button class="btn btn-sm btn-outline-primary" onclick="repartirAutoPanneau()">🔀 Répartir automatiquement</button>
+      </div>
+
+      <div id="listeCandidatsRepartition">
+        <p class="text-muted text-center py-2">Chargement...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/math-render.js"></script>
+  <script src="js/math-toolbar.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

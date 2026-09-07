@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/auth.php';
+require_once __DIR__ . '/../utils/notifier.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
@@ -10,7 +11,6 @@ $data = json_decode(file_get_contents("php://input"), true);
 if ($method === 'POST') {
     $user = verifierToken();
 
-    // On vérifie que le concours_id est bien fourni avant d'aller plus loin
     if (empty($data['concours_id'])) {
         http_response_code(400);
         echo json_encode(["message" => "concours_id manquant"]);
@@ -20,7 +20,6 @@ if ($method === 'POST') {
     $db = new Database();
     $conn = $db->connect();
 
-    // Vérifier si déjà candidat à ce concours (on ne peut pas postuler deux fois)
     $check = $conn->prepare("SELECT id FROM candidatures 
         WHERE user_id = ? AND concours_id = ?");
     $check->execute([$user->id, $data['concours_id']]);
@@ -31,9 +30,10 @@ if ($method === 'POST') {
         exit();
     }
 
+    // paiement_effectue démarre toujours à 0 : c'est l'admin qui le coche après vérification du règlement
     $stmt = $conn->prepare("INSERT INTO candidatures 
-        (user_id, concours_id, statut) 
-        VALUES (?, ?, 'en_attente')");
+        (user_id, concours_id, statut, paiement_effectue) 
+        VALUES (?, ?, 'en_attente', 0)");
     
     $stmt->execute([$user->id, $data['concours_id']]);
 
@@ -47,7 +47,6 @@ if ($method === 'POST') {
 elseif ($method === 'GET' && isset($_GET['all'])) {
     $user = verifierToken();
 
-    // Deux rôles autorisés désormais : admin (décision finale) et jury (avis consultatif)
     if (!in_array($user->role, ['admin', 'jury'])) {
         http_response_code(403);
         echo json_encode(["message" => "Accès refusé"]);
@@ -57,9 +56,11 @@ elseif ($method === 'GET' && isset($_GET['all'])) {
     $db = new Database();
     $conn = $db->connect();
 
-    $sql = "SELECT ca.id, ca.statut, ca.avis_jury, ca.created_at,
+    // paiement_effectue et frais_montant/frais_description : nécessaires pour que l'admin
+    // sache, en un coup d'œil, qui a payé ou non (Chantier 5)
+    $sql = "SELECT ca.id, ca.statut, ca.avis_jury, ca.created_at, ca.paiement_effectue,
         u.nom AS candidat_nom,
-        c.titre AS concours_titre
+        c.titre AS concours_titre, c.frais_montant, c.frais_description
         FROM candidatures ca
         JOIN users u ON ca.user_id = u.id
         JOIN concours c ON ca.concours_id = c.id";
@@ -67,18 +68,9 @@ elseif ($method === 'GET' && isset($_GET['all'])) {
     $params = [];
 
     if ($user->role === 'jury') {
-        // === Cloisonnement par concours (nouveau) ===
-        // Le jury ne doit voir que les candidatures des concours pour lesquels
-        // l'admin l'a explicitement affecté via jury_affectations_concours.
-        // La jointure INNER garantit qu'aucune candidature d'un concours non
-        // affecté ne peut fuiter, même si la table est vide pour ce jury
-        // (dans ce cas, la jointure ne retourne simplement aucune ligne).
         $sql .= " INNER JOIN jury_affectations_concours jac 
                     ON jac.concours_id = ca.concours_id AND jac.jury_id = ?";
         $params[] = $user->id;
-
-        // Le jury n'a besoin de voir que les candidatures pas encore
-        // tranchées par l'admin, pour ne pas encombrer sa liste
         $sql .= " WHERE ca.statut = 'en_attente'";
     }
 
@@ -98,8 +90,10 @@ elseif ($method === 'GET') {
     $db = new Database();
     $conn = $db->connect();
 
+    // paiement_effectue, frais_montant, frais_description : le candidat doit savoir s'il doit encore payer
     $stmt = $conn->prepare("SELECT ca.id, c.titre, c.date_debut, c.date_fin, 
-        ca.statut, ca.created_at 
+        ca.statut, ca.created_at, ca.paiement_effectue,
+        c.frais_montant, c.frais_description
         FROM candidatures ca
         JOIN concours c ON ca.concours_id = c.id
         WHERE ca.user_id = ?");
@@ -110,9 +104,10 @@ elseif ($method === 'GET') {
     echo json_encode($candidatures);
 }
 
-// PUT — Deux usages distincts selon le rôle et le champ envoyé :
-//   - { id, statut }    -> décision finale, réservée à l'admin
-//   - { id, avis_jury } -> avis consultatif, réservé au jury affecté à ce concours
+// PUT — Trois usages distincts selon le champ envoyé :
+//   - { id, statut }            -> décision finale, réservée à l'admin
+//   - { id, avis_jury }         -> avis consultatif, réservé au jury affecté à ce concours
+//   - { id, paiement_effectue } -> suivi manuel du paiement des frais, réservé à l'admin (Chantier 5)
 elseif ($method === 'PUT') {
     $user = verifierToken();
 
@@ -133,8 +128,6 @@ elseif ($method === 'PUT') {
             exit();
         }
 
-        // On vérifie que le statut envoyé fait bien partie des valeurs autorisées
-        // (évite qu'une valeur invalide se retrouve en base, ex: faute de frappe côté front)
         $statutsValides = ['en_attente', 'validé', 'rejeté'];
         if (!in_array($data['statut'], $statutsValides)) {
             http_response_code(400);
@@ -144,6 +137,40 @@ elseif ($method === 'PUT') {
 
         $stmt = $conn->prepare("UPDATE candidatures SET statut = ? WHERE id = ?");
         $stmt->execute([$data['statut'], $data['id']]);
+
+        // === Notification automatique au candidat (Chantier 3) ===
+        if (in_array($data['statut'], ['validé', 'rejeté'])) {
+            $infoStmt = $conn->prepare("SELECT ca.user_id, c.titre AS concours_titre
+                FROM candidatures ca
+                JOIN concours c ON c.id = ca.concours_id
+                WHERE ca.id = ?");
+            $infoStmt->execute([$data['id']]);
+            $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($info) {
+                if ($data['statut'] === 'validé') {
+                    creerNotification(
+                        $conn,
+                        $info['user_id'],
+                        "Candidature validée",
+                        "Votre candidature au concours \"{$info['concours_titre']}\" a été validée. Vous êtes convoqué(e) aux épreuves.",
+                        'convocation',
+                        '/concours_fp/public/epreuves.html',
+                        $user->id
+                    );
+                } else {
+                    creerNotification(
+                        $conn,
+                        $info['user_id'],
+                        "Candidature non retenue",
+                        "Votre candidature au concours \"{$info['concours_titre']}\" n'a pas été retenue.",
+                        'rejet',
+                        '/concours_fp/public/concours.html',
+                        $user->id
+                    );
+                }
+            }
+        }
 
         echo json_encode(["message" => "Statut mis à jour ✅"]);
         exit();
@@ -164,13 +191,6 @@ elseif ($method === 'PUT') {
             exit();
         }
 
-        // === Vérification de cloisonnement (nouveau) ===
-        // Même si l'interface jury ne propose plus que des candidatures déjà
-        // filtrées, on reste protégé côté serveur : un jury malveillant pourrait
-        // rejouer une requête PUT avec l'id d'une candidature d'un concours qui
-        // n'est pas le sien (ex: via Postman). On vérifie donc explicitement
-        // que ce jury est bien affecté au concours parent de cette candidature
-        // avant d'accepter son avis.
         $verif = $conn->prepare("SELECT ca.id
             FROM candidatures ca
             INNER JOIN jury_affectations_concours jac
@@ -191,9 +211,23 @@ elseif ($method === 'PUT') {
         exit();
     }
 
-    // Ni statut ni avis_jury envoyé -> requête incomplète
+    // --- Cas 3 (NOUVEAU, Chantier 5) : l'admin coche/décoche le paiement des frais d'inscription ---
+    if (isset($data['paiement_effectue'])) {
+        if ($user->role !== 'admin') {
+            http_response_code(403);
+            echo json_encode(["message" => "Accès refusé : seul l'admin peut confirmer un paiement"]);
+            exit();
+        }
+
+        $stmt = $conn->prepare("UPDATE candidatures SET paiement_effectue = ? WHERE id = ?");
+        $stmt->execute([$data['paiement_effectue'] ? 1 : 0, $data['id']]);
+
+        echo json_encode(["message" => "Statut de paiement mis à jour ✅"]);
+        exit();
+    }
+
     http_response_code(400);
-    echo json_encode(["message" => "Aucune donnée valide à mettre à jour (statut ou avis_jury attendu)"]);
+    echo json_encode(["message" => "Aucune donnée valide à mettre à jour (statut, avis_jury ou paiement_effectue attendu)"]);
 
 } else {
     http_response_code(405);

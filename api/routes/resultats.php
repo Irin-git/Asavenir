@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/auth.php';
+require_once __DIR__ . '/../utils/notifier.php';
 
 // ⚠️ Fonction placée ici, au niveau racine du script (jamais imbriquée dans un autre bloc),
 // pour pouvoir être appelée depuis n'importe où plus bas dans le fichier
@@ -151,6 +152,65 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
         "ajourne"         => $ajourne,
         "rejete"          => $rejete,
         "taux_reussite"   => $taux_reussite
+    ]);
+
+// ===== GET stats_globales — vue d'ensemble tous concours confondus, réservé admin (Chantier 5) =====
+} else if ($method === 'GET' && isset($_GET['stats_globales'])) {
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès réservé à l'administrateur"]);
+        exit();
+    }
+
+    $conn = (new Database())->connect();
+
+    $totalConcoursStmt = $conn->query("SELECT COUNT(*) FROM concours");
+    $total_concours = (int) $totalConcoursStmt->fetchColumn();
+
+    $concoursOuvertsStmt = $conn->query("SELECT COUNT(*) FROM concours WHERE statut = 'ouvert'");
+    $concours_ouverts = (int) $concoursOuvertsStmt->fetchColumn();
+
+    // Candidats uniques ayant postulé au moins une fois, tous concours confondus
+    $totalCandidatsStmt = $conn->query("SELECT COUNT(DISTINCT user_id) FROM candidatures");
+    $total_candidats = (int) $totalCandidatsStmt->fetchColumn();
+
+    $totalCandidaturesStmt = $conn->query("SELECT COUNT(*) FROM candidatures");
+    $total_candidatures = (int) $totalCandidaturesStmt->fetchColumn();
+
+    // Répartition par mention, sur TOUS les résultats déjà saisis (même logique que stats_concours,
+    // mais sans filtrer par concours_id)
+    $mentionStmt = $conn->query("SELECT mention, COUNT(*) AS total FROM resultats GROUP BY mention");
+    $mentionsBrutes = $mentionStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    $admis   = (int) ($mentionsBrutes['Admis'] ?? 0);
+    $ajourne = (int) ($mentionsBrutes['Ajourné'] ?? 0);
+    $rejete  = (int) ($mentionsBrutes['Rejeté'] ?? 0);
+    $notes   = $admis + $ajourne + $rejete;
+
+    $taux_reussite_global = $notes > 0 ? round(($admis / $notes) * 100, 1) : 0;
+
+    // Top 5 des concours les plus demandés — donne un aperçu utile sans surcharger le tableau de bord
+    $topConcoursStmt = $conn->query("
+        SELECT c.titre, COUNT(ca.id) AS total_candidatures
+        FROM concours c
+        LEFT JOIN candidatures ca ON ca.concours_id = c.id
+        GROUP BY c.id
+        ORDER BY total_candidatures DESC
+        LIMIT 5
+    ");
+    $top_concours = $topConcoursStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode([
+        "total_concours"        => $total_concours,
+        "concours_ouverts"      => $concours_ouverts,
+        "total_candidats"       => $total_candidats,
+        "total_candidatures"    => $total_candidatures,
+        "admis"                 => $admis,
+        "ajourne"               => $ajourne,
+        "rejete"                => $rejete,
+        "taux_reussite_global"  => $taux_reussite_global,
+        "top_concours"          => $top_concours
     ]);
 
 // ===== GET par_candidat — classement détaillé d'un concours, réservé admin =====
@@ -565,6 +625,27 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
 
     $stmt = $conn->prepare("UPDATE concours SET resultats_publies = 1 WHERE id = ?");
     $stmt->execute([$concours_id]);
+
+    // === NOUVEAU (Chantier 3) : notification automatique à tous les candidats validés ===
+    $concoursStmt = $conn->prepare("SELECT titre FROM concours WHERE id = ?");
+    $concoursStmt->execute([$concours_id]);
+    $concoursTitre = $concoursStmt->fetchColumn();
+
+    $candidatsStmt = $conn->prepare("SELECT user_id FROM candidatures WHERE concours_id = ? AND statut = 'validé'");
+    $candidatsStmt->execute([$concours_id]);
+    $candidats = $candidatsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($candidats as $candidat) {
+        creerNotification(
+            $conn,
+            $candidat['user_id'],
+            "Résultats disponibles",
+            "Les résultats du concours \"$concoursTitre\" sont désormais consultables.",
+            'resultat',
+            '/concours_fp/public/mes_resultats.html',
+            $user->id
+        );
+    }
 
     http_response_code(200);
     echo json_encode(["message" => "Résultats publiés avec succès"]);

@@ -55,6 +55,7 @@ function afficherSection(nom) {
 
 // ===== Dashboard / Stats =====
 async function chargerStats() {
+  chargerStatsGlobales(); // Chantier 5 : vue tous concours confondus
   try {
     const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
     const concours = await res.json();
@@ -64,6 +65,38 @@ async function chargerStats() {
   } catch {
     document.getElementById('statTotal').textContent = '–';
     document.getElementById('statOuvert').textContent = '–';
+  }
+}
+
+// === NOUVEAU (Chantier 5) : vue globale du tableau de bord, tous concours confondus ===
+async function chargerStatsGlobales() {
+  try {
+    const res = await fetch(`${API}/resultats?stats_globales=1`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const s = await res.json();
+
+    if (!res.ok) throw new Error(s.message);
+
+    document.getElementById('statGlobalConcours').textContent = s.total_concours;
+    document.getElementById('statGlobalOuverts').textContent = s.concours_ouverts;
+    document.getElementById('statGlobalCandidats').textContent = s.total_candidats;
+    document.getElementById('statGlobalTaux').textContent = `${s.taux_reussite_global}%`;
+
+    const listeTop = document.getElementById('listeTopConcours');
+    if (!s.top_concours.length) {
+      listeTop.innerHTML = '<p class="text-muted text-center py-2">Aucune candidature enregistrée pour le moment.</p>';
+      return;
+    }
+
+    listeTop.innerHTML = s.top_concours.map((c, i) => `
+      <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+        <span>${i + 1}. ${escapeHtml(c.titre)}</span>
+        <span class="badge bg-light text-dark">${c.total_candidatures} candidature${c.total_candidatures > 1 ? 's' : ''}</span>
+      </div>
+    `).join('');
+  } catch {
+    ['statGlobalConcours', 'statGlobalOuverts', 'statGlobalCandidats', 'statGlobalTaux'].forEach(id => {
+      document.getElementById(id).textContent = '–';
+    });
   }
 }
 
@@ -195,11 +228,20 @@ async function chargerTableau() {
 // ===== Créer un concours =====
 async function creerConcours() {
   const titre       = document.getElementById('titre').value.trim();
+  const categorie    = document.getElementById('categorie').value; // Chantier 4
   const description = document.getElementById('description').value.trim();
   const dateDebut    = document.getElementById('dateDebut').value;
   const dateFin       = document.getElementById('dateFin').value;
   const statut        = document.getElementById('statut').value;
   const nbPlaces       = document.getElementById('nbPlaces').value;
+
+  // Chantier 5 : conditions d'éligibilité + frais d'inscription (tous facultatifs)
+  const diplomeRequis   = document.getElementById('diplomeRequis').value.trim();
+  const ageMin           = document.getElementById('ageMin').value;
+  const ageMax           = document.getElementById('ageMax').value;
+  const conditionsAutres = document.getElementById('conditionsAutres').value.trim();
+  const fraisMontant     = document.getElementById('fraisMontant').value;
+  const fraisDescription = document.getElementById('fraisDescription').value.trim();
 
   if (!titre || !dateDebut || !dateFin) {
     document.getElementById('alertAdmin').innerHTML =
@@ -217,14 +259,20 @@ async function creerConcours() {
     const res = await fetch(`${API}/concours`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ titre, description, date_debut: dateDebut, date_fin: dateFin, statut, nb_places: nbPlaces || null })
+      body: JSON.stringify({
+        titre, categorie, description, date_debut: dateDebut, date_fin: dateFin, statut, nb_places: nbPlaces || null,
+        diplome_requis: diplomeRequis || null, age_min: ageMin || null, age_max: ageMax || null,
+        conditions_autres: conditionsAutres || null, frais_montant: fraisMontant || null, frais_description: fraisDescription || null
+      })
     });
     const data = await res.json();
 
     if (res.ok) {
       document.getElementById('alertAdmin').innerHTML =
         '<div class="alert alert-success">✅ Concours créé avec succès !</div>';
-      ['titre', 'description', 'dateDebut', 'dateFin', 'nbPlaces'].forEach(id => document.getElementById(id).value = '');
+      ['titre', 'description', 'dateDebut', 'dateFin', 'nbPlaces', 'diplomeRequis', 'ageMin', 'ageMax', 'conditionsAutres', 'fraisMontant', 'fraisDescription']
+        .forEach(id => document.getElementById(id).value = '');
+      document.getElementById('categorie').value = 'Administratif';
       chargerStats();
     } else {
       document.getElementById('alertAdmin').innerHTML =
@@ -285,7 +333,7 @@ async function chargerCandidatures() {
 
     if (!data.length) {
       document.getElementById('tableauCandidatures').innerHTML =
-        '<tr><td colspan="6" class="text-center text-muted py-4">Aucune candidature reçue.</td></tr>';
+        '<tr><td colspan="7" class="text-center text-muted py-4">Aucune candidature reçue.</td></tr>';
       return;
     }
 
@@ -297,6 +345,15 @@ async function chargerCandidatures() {
         <td>${new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
         <td>${escapeHtml(c.statut)}</td>
         <td>
+          ${c.frais_montant
+            ? `<div class="form-check form-switch mb-0">
+                 <input class="form-check-input" type="checkbox" role="switch" ${c.paiement_effectue == 1 ? 'checked' : ''}
+                   onchange="togglePaiementCandidature(${c.id}, this.checked)" />
+                 <small class="text-muted">${c.paiement_effectue == 1 ? 'Payé' : 'Non payé'}</small>
+               </div>`
+            : '<small class="text-muted">Gratuit</small>'}
+        </td>
+        <td>
           <a href="dossier.html?id=${c.id}&nom=${encodeURIComponent(c.candidat_nom)}"
              target="_blank" class="btn btn-sm btn-outline-primary">👁️ Voir dossier</a>
           <button class="btn btn-sm btn-success" onclick="validerCandidature(${c.id})">✅ Valider</button>
@@ -306,7 +363,26 @@ async function chargerCandidatures() {
     `).join('');
   } catch {
     document.getElementById('tableauCandidatures').innerHTML =
-      '<tr><td colspan="6" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
+      '<tr><td colspan="7" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
+  }
+}
+
+// === NOUVEAU (Chantier 5) : coche/décoche la confirmation de paiement des frais d'inscription ===
+async function togglePaiementCandidature(id, paye) {
+  try {
+    const res = await fetch(`${API}/candidatures`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id, paiement_effectue: paye })
+    });
+
+    if (res.ok) {
+      chargerCandidatures(); // recharge pour mettre à jour le libellé "Payé"/"Non payé"
+    } else {
+      alert('Erreur lors de la mise à jour du paiement');
+    }
+  } catch {
+    alert('Erreur réseau');
   }
 }
 
@@ -350,9 +426,11 @@ async function chargerEpreuvesAttente() {
             <strong>${escapeHtml(e.titre)}</strong>
             <div class="text-muted" style="font-size:13px;">
               Concours : ${escapeHtml(e.concours_titre)} • Type : ${escapeHtml(e.type)} • Durée : ${e.duree} min
+              ${e.nb_salles > 0 ? ` • <span class="badge bg-light text-dark">${e.nb_salles} salle${e.nb_salles > 1 ? 's' : ''}</span>` : ''}
             </div>
           </div>
           <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="ouvrirPanneauSalles(${e.id}, '${escapeHtml(e.titre).replace(/'/g, "\\'")}')">🏫 Salles</button>
             <a href="sujet.html?id=${e.id}" target="_blank" class="btn btn-outline-primary btn-sm">👁️ Voir le sujet</a>
             ${e.modifiable == 1
               ? `<button class="btn btn-warning btn-sm btn-modifier-epreuve" data-id="${e.id}" data-titre="${escapeHtml(e.titre)}">✏️ Modifier</button>`
@@ -385,6 +463,184 @@ async function ouvrirModificationEpreuve(id, titre) {
   showAlertSujet(`Édition de "${escapeHtml(titre)}" — les questions existantes sont chargées ci-dessous.`, 'success');
 
   await rafraichirListeQuestionsSujet();
+}
+
+// ==========================================================================
+// === NOUVEAU (Chantier 5) : panneau Salles & Répartition ===
+// ==========================================================================
+let epreuveIdPanneauSalles = null;
+
+function ouvrirPanneauSalles(epreuveId, titre) {
+  epreuveIdPanneauSalles = epreuveId;
+  document.getElementById('overlaySallesTitreEpreuve').textContent = titre;
+  document.getElementById('alertPanneauSalles').innerHTML = '';
+  document.getElementById('overlaySalles').style.display = 'flex';
+  chargerSallesPanneau();
+  chargerCandidatsRepartitionPanneau();
+}
+
+function fermerPanneauSalles() {
+  document.getElementById('overlaySalles').style.display = 'none';
+  epreuveIdPanneauSalles = null;
+  chargerEpreuvesAttente(); // rafraîchit le badge "X salles" dans la liste, au cas où
+}
+
+async function chargerSallesPanneau() {
+  const container = document.getElementById('listeSallesPanneau');
+  try {
+    const res = await fetch(`${API}/salles_epreuve?epreuve_id=${epreuveIdPanneauSalles}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const salles = await res.json();
+
+    if (!salles.length) {
+      container.innerHTML = '<p class="text-muted text-center py-2">Aucune salle configurée pour cette épreuve.</p>';
+      return;
+    }
+
+    container.innerHTML = salles.map(s => `
+      <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+        <div>
+          <strong>${escapeHtml(s.nom_salle)}</strong>
+          <span class="text-muted ms-2" style="font-size:12px;">
+            ${s.nb_affectes} affecté${s.nb_affectes > 1 ? 's' : ''}${s.capacite ? ` / ${s.capacite} places` : ' (illimitée)'}
+          </span>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="supprimerSallePanneau(${s.id})">Retirer</button>
+      </div>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p class="text-danger text-center py-2">Erreur de chargement.</p>';
+  }
+}
+
+async function ajouterSallePanneau() {
+  const nom_salle = document.getElementById('nouvelleSalleNom').value.trim();
+  const capacite = document.getElementById('nouvelleSalleCapacite').value;
+
+  if (!nom_salle) {
+    document.getElementById('alertPanneauSalles').innerHTML = '<div class="alert alert-warning py-2">Le nom de la salle est obligatoire.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/salles_epreuve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ epreuve_id: epreuveIdPanneauSalles, nom_salle, capacite: capacite || null })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('nouvelleSalleNom').value = '';
+      document.getElementById('nouvelleSalleCapacite').value = '';
+      document.getElementById('alertPanneauSalles').innerHTML = '';
+      chargerSallesPanneau();
+    } else {
+      document.getElementById('alertPanneauSalles').innerHTML = `<div class="alert alert-danger py-2">${escapeHtml(data.message)}</div>`;
+    }
+  } catch {
+    document.getElementById('alertPanneauSalles').innerHTML = '<div class="alert alert-danger py-2">Erreur réseau.</div>';
+  }
+}
+
+async function supprimerSallePanneau(id) {
+  if (!confirm("Retirer cette salle ? Les candidats qui y étaient affectés redeviendront non-affectés.")) return;
+
+  try {
+    const res = await fetch(`${API}/salles_epreuve`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+
+    if (res.ok) {
+      chargerSallesPanneau();
+      chargerCandidatsRepartitionPanneau();
+    } else {
+      alert('Erreur lors de la suppression de la salle');
+    }
+  } catch {
+    alert('Erreur réseau');
+  }
+}
+
+async function chargerCandidatsRepartitionPanneau() {
+  const container = document.getElementById('listeCandidatsRepartition');
+  try {
+    const [resCandidats, resSalles] = await Promise.all([
+      fetch(`${API}/affectations_salle?epreuve_id=${epreuveIdPanneauSalles}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch(`${API}/salles_epreuve?epreuve_id=${epreuveIdPanneauSalles}`, { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+    const candidats = await resCandidats.json();
+    const salles = await resSalles.json();
+
+    if (!candidats.length) {
+      container.innerHTML = '<p class="text-muted text-center py-2">Aucun candidat validé pour ce concours.</p>';
+      return;
+    }
+
+    const optionsSalles = salles.map(s => `<option value="${s.id}">${escapeHtml(s.nom_salle)}</option>`).join('');
+
+    container.innerHTML = candidats.map(c => `
+      <div class="ligne-candidat-repartition">
+        <span>${escapeHtml(c.candidat_nom)}</span>
+        <select class="form-select form-select-sm" style="max-width:220px;" onchange="affecterSalleManuelle(${c.candidature_id}, this.value)">
+          <option value="">-- Non affecté --</option>
+          ${optionsSalles}
+        </select>
+      </div>
+    `).join('');
+
+    // Présélectionne la salle déjà affectée à chaque candidat (si la répartition a déjà été faite)
+    candidats.forEach((c, i) => {
+      if (c.salle_id) {
+        container.querySelectorAll('select')[i].value = c.salle_id;
+      }
+    });
+  } catch {
+    container.innerHTML = '<p class="text-danger text-center py-2">Erreur de chargement.</p>';
+  }
+}
+
+async function repartirAutoPanneau() {
+  try {
+    const res = await fetch(`${API}/affectations_salle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'repartir_auto', epreuve_id: epreuveIdPanneauSalles })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('alertPanneauSalles').innerHTML =
+        `<div class="alert alert-success py-2">✅ ${data.total_candidats - data.non_affectes} candidat(s) réparti(s)${data.non_affectes > 0 ? `, ${data.non_affectes} non affecté(s) — capacité insuffisante` : ''}.</div>`;
+      chargerSallesPanneau();
+      chargerCandidatsRepartitionPanneau();
+    } else {
+      document.getElementById('alertPanneauSalles').innerHTML = `<div class="alert alert-danger py-2">${escapeHtml(data.message)}</div>`;
+    }
+  } catch {
+    document.getElementById('alertPanneauSalles').innerHTML = '<div class="alert alert-danger py-2">Erreur réseau.</div>';
+  }
+}
+
+async function affecterSalleManuelle(candidature_id, salle_id) {
+  if (!salle_id) return; // "-- Non affecté --" choisi : on ne fait rien (pas de désaffectation à ce stade)
+
+  try {
+    const res = await fetch(`${API}/affectations_salle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'affecter_manuel', epreuve_id: epreuveIdPanneauSalles, candidature_id, salle_id })
+    });
+
+    if (res.ok) {
+      chargerSallesPanneau(); // met à jour les compteurs "X affecté(s)"
+    } else {
+      alert("Erreur lors de l'affectation");
+    }
+  } catch {
+    alert('Erreur réseau');
+  }
 }
 
 async function voirQuestions(epreuve_id) {
@@ -426,6 +682,8 @@ async function voirQuestions(epreuve_id) {
         </div>
       `;
     }).join('');
+
+    rendreMathDans(zone); // Chantier 4
   } catch {
     zone.innerHTML = '<p class="text-danger">Erreur de chargement.</p>';
   }
@@ -449,6 +707,41 @@ async function chargerConcoursSujet() {
   }
 }
 
+// === NOUVEAU (Chantier 5) : constructeur de salles multiples pour le formulaire de création d'épreuve ===
+let sallesFormulaireTemp = [];
+
+function ajouterSalleFormulaire() {
+  const nom_salle = document.getElementById('salleNomTemp').value.trim();
+  const capacite = document.getElementById('salleCapaciteTemp').value;
+
+  if (!nom_salle) return;
+
+  sallesFormulaireTemp.push({ nom_salle, capacite: capacite || null });
+  document.getElementById('salleNomTemp').value = '';
+  document.getElementById('salleCapaciteTemp').value = '';
+  afficherSallesFormulaire();
+}
+
+function retirerSalleFormulaire(index) {
+  sallesFormulaireTemp.splice(index, 1);
+  afficherSallesFormulaire();
+}
+
+function afficherSallesFormulaire() {
+  const container = document.getElementById('listeSallesFormulaire');
+  if (!sallesFormulaireTemp.length) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = sallesFormulaireTemp.map((s, i) => `
+    <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-1">
+      <span>${escapeHtml(s.nom_salle)}${s.capacite ? ` <small class="text-muted">(${s.capacite} places)</small>` : ' <small class="text-muted">(illimitée)</small>'}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="retirerSalleFormulaire(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
 async function creerEpreuveSujet() {
   const concours_id  = document.getElementById('selectConcoursSujet').value;
   const titre        = document.getElementById('titreEpreuve').value.trim();
@@ -466,7 +759,7 @@ async function creerEpreuveSujet() {
     const res = await fetch(`${API}/epreuves`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ concours_id, titre, type, duree, coefficient, date_epreuve })
+      body: JSON.stringify({ concours_id, titre, type, duree, coefficient, date_epreuve, salles: sallesFormulaireTemp })
     });
     const data = await res.json();
 
@@ -477,6 +770,8 @@ async function creerEpreuveSujet() {
       showAlertSujet('Épreuve créée ! Ajoutez maintenant vos questions. ✅', 'success');
       document.getElementById('btnEnvoiZoneSujet').style.display = '';
       afficherFormulaireQuestionSujet();
+      sallesFormulaireTemp = []; // remise à zéro pour la prochaine épreuve
+      afficherSallesFormulaire();
     } else {
       showAlertSujet(data.message || 'Erreur lors de la création.');
     }
@@ -602,6 +897,7 @@ async function ajouterQuestionSujet() {
       ordreAutoSujet++;
       document.getElementById('ordre').value = ordreAutoSujet;
       document.getElementById('enonce').value = '';
+      mettreAJourApercuMath(document.getElementById('enonce'), document.getElementById('apercuMathEnonce'), 'apercuMathEnonce'); // Chantier 4
       const mediaFichier = document.getElementById('mediaFichier');
       if (mediaFichier) mediaFichier.value = '';
       showAlertSujet('Question ajoutée ✅', 'success');
@@ -644,6 +940,8 @@ function afficherQuestionDansApercuSujet(type, enonce, choix, points, ordre, id)
       ${choixHtml || '<small class="text-muted">Correction manuelle</small>'}
     </div>
   `);
+
+  rendreMathDans(container); // Chantier 4
 
   document.getElementById('compteurQuestionsSujet').textContent = ordreAutoSujet;
 }
@@ -1170,3 +1468,4 @@ async function envoyerNotification() {
 
 // ===== Démarrage =====
 chargerStats();
+initMathToolbar('enonce', 'toolbarMathEnonce', 'apercuMathEnonce'); // Chantier 4

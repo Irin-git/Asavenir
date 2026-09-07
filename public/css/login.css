@@ -379,6 +379,28 @@ body {
 .link-forgot { color: var(--blue-vivid); font-weight: 600; }
 .link-back { color: var(--ink-soft); }
 
+/* Séparateur "ou" entre le formulaire classique et le bouton Google (Chantier 2) */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  margin: 1.3rem 0;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.divider span { padding: 0 0.8rem; }
+
+/* Le vrai bouton Google (rendu par Google Identity Services) s'insère ici, centré */
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+}
+
 /* Gestion de l'affichage des formulaires actifs */
 form { display: none; }
 form.visible { display: block; animation: fade-in 0.35s ease; }

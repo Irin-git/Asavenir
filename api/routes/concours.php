@@ -36,13 +36,23 @@ elseif ($method === 'POST') {
         echo json_encode(["message" => "Titre, description, date_debut et date_fin sont obligatoires"]);
         exit();
     }
+
+    // Catégorisation des postes — on limite aux catégories connues (évite une faute de frappe en base)
+    $categoriesValides = ['Administratif', 'Enseignement', 'Santé', 'Technique', 'Sécurité', 'Autre'];
+    $categorie = $data['categorie'] ?? 'Autre';
+    if (!in_array($categorie, $categoriesValides)) {
+        $categorie = 'Autre';
+    }
     
     $db = new Database();
     $conn = $db->connect();
     
+    // Conditions d'éligibilité et frais d'inscription : tous facultatifs (null si non renseignés),
+    // un concours reste valide même sans condition particulière ou sans frais
     $stmt = $conn->prepare("INSERT INTO concours 
-        (titre, description, date_debut, date_fin, statut, nb_places) 
-        VALUES (?, ?, ?, ?, ?, ?)");
+        (titre, description, date_debut, date_fin, statut, nb_places, categorie,
+         diplome_requis, age_min, age_max, conditions_autres, frais_montant, frais_description) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     
     $stmt->execute([
         $data['titre'],
@@ -50,7 +60,14 @@ elseif ($method === 'POST') {
         $data['date_debut'],
         $data['date_fin'],
         $data['statut'] ?? 'ouvert',
-        $data['nb_places'] ?? null
+        $data['nb_places'] ?? null,
+        $categorie,
+        $data['diplome_requis'] ?: null,
+        $data['age_min'] ?: null,
+        $data['age_max'] ?: null,
+        $data['conditions_autres'] ?: null,
+        $data['frais_montant'] ?: null,
+        $data['frais_description'] ?: null
     ]);
     
     echo json_encode(["message" => "Concours créé ✅"]);

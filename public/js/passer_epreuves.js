@@ -119,8 +119,11 @@ async function verifierDejaSoumise() {
 
     if (epreuveActuelle && epreuveActuelle.deja_soumise == 1) {
       document.getElementById('questions-container').innerHTML =
-        '<p class="text-danger fw-bold">Vous avez déjà soumis cette épreuve. Accès non autorisé.</p>';
+        '<p class="text-danger fw-bold">Vous avez déjà soumis cette épreuve. Redirection...</p>';
       document.getElementById('btn-soumettre').style.display = 'none';
+      // Bug fix : on ne laisse jamais le candidat rester sur la page d'examen une fois soumise,
+      // même s'il y accède directement par une ancienne URL ou un signet
+      setTimeout(() => window.location.replace('concours.html'), 1200);
       return true;
     }
     return false;
@@ -205,6 +208,8 @@ async function chargerQuestions() {
 
       conteneur.appendChild(carte);
     });
+
+    rendreMathDans(conteneur); // Chantier 4
 
   } catch (err) {
     console.error(err);
@@ -314,7 +319,9 @@ async function soumettreEpreuve() {
         await document.exitFullscreen().catch(() => {});
       }
 
-      window.location.href = 'epreuves.html';
+      // Bug fix : replace() (pas href) pour que la page d'examen soit RETIRÉE de l'historique —
+      // le bouton retour du navigateur ne pourra donc jamais y ramener le candidat
+      window.location.replace('concours.html');
     } else {
       document.getElementById('btn-soumettre').disabled = false;
       document.getElementById('btn-soumettre').textContent = "Soumettre l'épreuve";
@@ -545,7 +552,7 @@ async function tempsEcoule() {
     await document.exitFullscreen().catch(() => {});
   }
 
-  window.location.href = 'epreuves.html';
+  window.location.replace('concours.html');
 }
 
 // ===== Vérifie l'accès à l'épreuve avant même d'afficher le bouton "Commencer" =====

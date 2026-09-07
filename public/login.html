@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/login.css">
+  <!-- Google Identity Services : nécessaire pour le bouton "Se connecter avec Google" -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -86,6 +88,11 @@
             <a href="#" class="link-forgot" role="button" onclick="showForgotPassword(); return false;">Mot de passe oublié ?</a>
           </p>
         </form>
+
+        <div class="divider"><span>ou</span></div>
+
+        <!-- Le bouton Google réel est injecté ici en JS par login.js (Google Identity Services) -->
+        <div id="googleBtnContainer" class="google-btn-container"></div>
       </div>
 
       <!-- ===== Écran : Inscription ===== -->
@@ -154,6 +161,25 @@
           <button type="submit" class="btn-submit">Réinitialiser le mot de passe</button>
         </form>
         <p class="link-line">
+          <a href="#" class="link-back" role="button" onclick="showTab('login'); return false;">← Retour à la connexion</a>
+        </p>
+      </div>
+
+      <!-- ===== Écran : Vérification 2FA (admin/jury uniquement) ===== -->
+      <div id="twofaView" class="auth-view">
+        <h2>Vérification en deux étapes</h2>
+        <p class="subtitle">Un code à 6 chiffres a été envoyé à votre adresse email.</p>
+
+        <form id="twofaForm">
+          <div class="field">
+            <label>Code à 6 chiffres</label>
+            <input type="text" id="twofaCode" maxlength="6" placeholder="123456" required />
+          </div>
+          <button type="submit" class="btn-submit">Valider</button>
+        </form>
+        <p class="link-line">
+          <a href="#" class="link-back" role="button" onclick="resendTwofaCode(); return false;">Renvoyer le code</a>
+          &nbsp;·&nbsp;
           <a href="#" class="link-back" role="button" onclick="showTab('login'); return false;">← Retour à la connexion</a>
         </p>
       </div>

@@ -1,0 +1,13 @@
+name: Rappels épreuves (Chantier 3)
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # toutes les heures
+  workflow_dispatch:        # permet aussi un déclenchement manuel depuis l'onglet Actions de GitHub
+
+jobs:
+  appeler-rappels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler l'endpoint de rappels
+        run: curl -sf "https://asavenir.infinityfree.io/api/index.php/cron_rappels?cle=${{ secrets.CRON_SECRET_KEY }}"

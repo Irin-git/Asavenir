@@ -329,6 +329,8 @@ function afficherCopieCourante() {
       </button>
     </div>
   `;
+
+  rendreMathDans(zone); // Chantier 4
 }
 
 async function validerCopieJury(candidature_id) {

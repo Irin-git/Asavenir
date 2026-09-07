@@ -9,6 +9,9 @@ let candidatureActuelle = null;
 // pour pouvoir l'arrêter proprement si jamais on en a besoin (ex: déconnexion)
 let intervalNotifications = null;
 
+// Chantier 4 : mémorise la liste complète pour filtrer par catégorie sans re-fetch
+let concoursCache = [];
+
 // Sécurité : redirige si non connecté
 if (!token) {
   window.location.href = 'login.html';
@@ -37,43 +40,146 @@ function deconnexion() {
 async function chargerConcours() {
   try {
     const res = await fetch(`${API}/concours`, { headers: { 'Authorization': `Bearer ${token}` } });
-    const concours = await res.json();
+    concoursCache = await res.json(); // Chantier 5 : on garde la liste complète en mémoire pour le filtre
     document.getElementById('loading').style.display = 'none';
 
-    if (!concours.length) {
-      document.getElementById('listeConcours').innerHTML = '<p class="text-muted">Aucun concours disponible pour le moment.</p>';
-      return;
-    }
+    afficherConcours(concoursCache);
+  } catch {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('listeConcours').innerHTML = '<p class="text-danger">Erreur de chargement des concours.</p>';
+  }
+}
 
-    const html = concours.map(c => `
+// Chantier 5 : affiche une liste (filtrée ou non) de concours — séparé de chargerConcours()
+// pour pouvoir être rappelé par le filtre catégorie sans refaire une requête réseau
+function afficherConcours(concours) {
+  if (!concours.length) {
+    document.getElementById('listeConcours').innerHTML = '<p class="text-muted">Aucun concours disponible pour le moment.</p>';
+    return;
+  }
+
+  const html = concours.map(c => {
+    // Bug fix : un concours dont la date de fin est dépassée n'est plus postulable,
+    // même si l'admin a oublié de changer son statut manuellement en "fermé"
+    const estExpire = new Date(c.date_fin) < new Date();
+    const estOuvert = c.statut === 'ouvert' && !estExpire;
+
+    // Chantier 5 : conditions d'éligibilité, affichées uniquement si au moins une est renseignée
+    const conditions = [];
+    if (c.diplome_requis) conditions.push(`🎓 ${escapeHtml(c.diplome_requis)}`);
+    if (c.age_min || c.age_max) {
+      if (c.age_min && c.age_max) conditions.push(`🎂 ${c.age_min}-${c.age_max} ans`);
+      else if (c.age_min) conditions.push(`🎂 ${c.age_min} ans minimum`);
+      else conditions.push(`🎂 ${c.age_max} ans maximum`);
+    }
+    if (c.conditions_autres) conditions.push(escapeHtml(c.conditions_autres));
+
+    return `
       <div class="col-md-6">
-        <div class="concours-card card p-3">
+        <div class="concours-card card p-3" style="cursor:pointer;" onclick="voirDetailsConcours(${c.id})">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <h6 class="fw-bold mb-0" style="color:#1a3a6b;">${escapeHtml(c.titre)}</h6>
-            <span class="badge ${c.statut === 'ouvert' ? 'badge-ouvert' : 'badge-ferme'} px-2 py-1 rounded-pill" style="font-size:11px;">
-              ${c.statut === 'ouvert' ? '✅ Ouvert' : '❌ Fermé'}
+            <span class="badge ${estOuvert ? 'badge-ouvert' : 'badge-ferme'} px-2 py-1 rounded-pill" style="font-size:11px;">
+              ${estOuvert ? '✅ Ouvert' : estExpire ? '⏱️ Clôturé' : '❌ Fermé'}
             </span>
           </div>
+          ${c.categorie ? `<span class="badge bg-light text-dark mb-2" style="font-size:11px;">🏷️ ${escapeHtml(c.categorie)}</span>` : ''}
           <p class="text-muted mb-2" style="font-size:13px;">${escapeHtml(c.description) || 'Aucune description.'}</p>
+          ${conditions.length ? `<p class="mb-2" style="font-size:12px;color:#555;">${conditions.join(' • ')}</p>` : ''}
+          ${c.frais_montant ? `<p class="mb-2" style="font-size:12px;color:#8a5a00;">💰 Frais : ${c.frais_montant} Ar${c.frais_description ? ` — ${escapeHtml(c.frais_description)}` : ''}</p>` : ''}
           <div class="d-flex justify-content-between align-items-center">
             <small class="text-muted">
               📅 ${new Date(c.date_debut).toLocaleDateString('fr-FR')} → ${new Date(c.date_fin).toLocaleDateString('fr-FR')}
             </small>
             <button class="btn-postuler"
               id="btn-${c.id}"
-              ${c.statut !== 'ouvert' ? 'disabled' : ''}
-              onclick="postuler(${c.id})">
-              Postuler
+              ${!estOuvert ? 'disabled' : ''}
+              onclick="event.stopPropagation(); postuler(${c.id})">
+              ${estExpire ? 'Concours clôturé' : estOuvert ? 'Postuler' : 'Fermé'}
             </button>
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+  }).join('');
 
-    document.getElementById('listeConcours').innerHTML = html;
-  } catch {
-    document.getElementById('loading').textContent = 'Erreur de chargement.';
+  document.getElementById('listeConcours').innerHTML = html;
+}
+
+// === NOUVEAU : ouvre le détail complet d'un concours — description, conditions, frais
+// et surtout la liste des épreuves (date, heure, coefficient) avant même de postuler ===
+async function voirDetailsConcours(concoursId) {
+  const c = concoursCache.find(x => x.id == concoursId);
+  if (!c) return;
+
+  document.getElementById('detailsConcoursTitre').textContent = c.titre;
+  document.getElementById('modalDetailsConcours').style.display = 'flex';
+
+  const conditions = [];
+  if (c.diplome_requis) conditions.push(`🎓 Diplôme requis : ${escapeHtml(c.diplome_requis)}`);
+  if (c.age_min || c.age_max) {
+    if (c.age_min && c.age_max) conditions.push(`🎂 Âge : ${c.age_min} à ${c.age_max} ans`);
+    else if (c.age_min) conditions.push(`🎂 Âge minimum : ${c.age_min} ans`);
+    else conditions.push(`🎂 Âge maximum : ${c.age_max} ans`);
   }
+  if (c.conditions_autres) conditions.push(escapeHtml(c.conditions_autres));
+
+  let html = `<p style="font-size:14px;">${escapeHtml(c.description) || 'Aucune description.'}</p>`;
+
+  if (conditions.length) {
+    html += `<p class="fw-semibold mb-1" style="font-size:13px;">📋 Conditions d'éligibilité</p>
+      <ul style="font-size:13px;">${conditions.map(cond => `<li>${cond}</li>`).join('')}</ul>`;
+  }
+
+  if (c.frais_montant) {
+    html += `<p style="font-size:13px;color:#8a5a00;">💰 <strong>${c.frais_montant} Ar</strong>${c.frais_description ? ` — ${escapeHtml(c.frais_description)}` : ''}</p>`;
+  }
+
+  html += `<hr><p class="fw-semibold mb-2" style="font-size:13px;">📝 Programme des épreuves</p>
+    <div id="listeEpreuvesDetailsConcours"><p class="text-muted" style="font-size:13px;">Chargement des épreuves...</p></div>`;
+
+  document.getElementById('detailsConcoursContenu').innerHTML = html;
+
+  // Les épreuves sont chargées séparément : un concours peut ne pas encore en avoir
+  try {
+    const res = await fetch(`${API}/epreuves?concours_id=${concoursId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const epreuves = await res.json();
+
+    const zoneEpreuves = document.getElementById('listeEpreuvesDetailsConcours');
+    if (!zoneEpreuves) return; // la modale a pu être fermée entre-temps
+
+    if (!Array.isArray(epreuves) || !epreuves.length) {
+      zoneEpreuves.innerHTML = '<p class="text-muted" style="font-size:13px;">Le programme des épreuves sera communiqué ultérieurement.</p>';
+      return;
+    }
+
+    zoneEpreuves.innerHTML = epreuves.map(e => `
+      <div class="d-flex justify-content-between align-items-center border-bottom py-2" style="font-size:13px;">
+        <div>
+          <strong>${escapeHtml(e.titre)}</strong>
+          <div class="text-muted" style="font-size:12px;">${escapeHtml(e.type)} • ${e.duree} min</div>
+        </div>
+        <div class="text-end">
+          <div>📅 ${new Date(e.date_epreuve).toLocaleString('fr-FR')}</div>
+          <div class="text-muted" style="font-size:12px;">Coefficient ${e.coefficient ?? 1}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    const zoneEpreuves = document.getElementById('listeEpreuvesDetailsConcours');
+    if (zoneEpreuves) zoneEpreuves.innerHTML = '<p class="text-danger" style="font-size:13px;">Erreur de chargement du programme.</p>';
+  }
+}
+
+function fermerModalDetailsConcours() {
+  document.getElementById('modalDetailsConcours').style.display = 'none';
+}
+
+// Chantier 5 : filtre côté client (pas de nouvelle requête, on utilise le cache)
+function filtrerConcoursParCategorie() {
+  const categorie = document.getElementById('filtreCategorie').value;
+  const filtres = categorie ? concoursCache.filter(c => c.categorie === categorie) : concoursCache;
+  afficherConcours(filtres);
 }
 
 // ===== Postuler à un concours =====
@@ -122,13 +228,19 @@ async function chargerCandidatures() {
       return;
     }
 
-    const html = candidatures.map(c => `
+    const html = candidatures.map(c => {
+      // Chantier 5 : badge historique — un concours dont la date de fin est dépassée est "archivé"
+      const estArchive = new Date(c.date_fin) < new Date();
+
+      return `
       <div class="candidature-item d-flex justify-content-between align-items-center">
         <div>
           <strong style="font-size:14px;">${escapeHtml(c.titre)}</strong>
+          ${estArchive ? '<span class="badge bg-secondary ms-2" style="font-size:10px;">📁 Archivé</span>' : ''}
           <div class="text-muted" style="font-size:12px;">
             Du ${new Date(c.date_debut).toLocaleDateString('fr-FR')} au ${new Date(c.date_fin).toLocaleDateString('fr-FR')}
           </div>
+          ${c.frais_montant ? `<div style="font-size:12px;color:#8a5a00;">💰 Frais : ${c.frais_montant} Ar — ${c.paiement_effectue == 1 ? '✅ Payé' : '⏳ En attente de paiement'}</div>` : ''}
         </div>
         <div class="d-flex align-items-center gap-2">
           <span class="status-badge status-${c.statut}">
@@ -139,7 +251,8 @@ async function chargerCandidatures() {
           </button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     document.getElementById('listeCandidatures').innerHTML = html;
   } catch {
