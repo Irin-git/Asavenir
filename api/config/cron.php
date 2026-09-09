@@ -5,5 +5,5 @@
 // Remplace par une chaîne longue et aléatoire, puis reporte la MÊME valeur dans le secret
 // GitHub "CRON_SECRET_KEY" (voir .github/workflows/rappels_epreuves.yml).
 return [
-    'secret' => 'REMPLACER_PAR_UNE_CLE_SECRETE_LONGUE_ET_ALEATOIRE',
+    'secret' => '00aff967f77cb86dc0a54a04d04509766aa901095a7ec182a9e758ae1c5feacf',
 ];

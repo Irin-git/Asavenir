@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Appeler l'endpoint de rappels
-        run: curl -sf "https://asavenir.infinityfree.io/api/index.php/cron_rappels?cle=${{ secrets.CRON_SECRET_KEY }}"
+        run: curl -sf --max-time 30 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" "https://asavenir.infinityfree.io/api/index.php/cron_rappels?cle=${{ secrets.CRON_SECRET_KEY }}"
