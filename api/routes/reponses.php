@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/auth.php';
+require_once __DIR__ . '/../utils/resultats_helper.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
@@ -95,6 +96,11 @@ if ($method === 'POST') {
         }
 
         $conn->commit();
+
+        // === CORRECTIF : déclenche le calcul du résultat si toutes les réponses sont déjà notées
+        // (cas d'une épreuve 100% QCM, où personne d'autre n'aurait jamais déclenché ce calcul) ===
+        verifierEtCalculerResultat($conn, $candidature_id);
+
         echo json_encode(["message" => "Réponses enregistrées ✅"]);
 
     } catch (Exception $e) {

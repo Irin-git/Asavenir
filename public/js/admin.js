@@ -202,7 +202,7 @@ async function chargerTableau() {
 
     if (!concours.length) {
       document.getElementById('tableauConcours').innerHTML =
-        '<tr><td colspan="5" class="text-center text-muted py-4">Aucun concours créé.</td></tr>';
+        '<tr><td colspan="6" class="text-center text-muted py-4">Aucun concours créé.</td></tr>';
       return;
     }
 
@@ -217,11 +217,39 @@ async function chargerTableau() {
             ${c.statut === 'ouvert' ? '✅ Ouvert' : '❌ Fermé'}
           </span>
         </td>
+        <td>
+          <button class="btn btn-sm btn-outline-danger" onclick="supprimerConcours(${c.id}, '${escapeHtml(c.titre).replace(/'/g, "\\'")}')">🗑 Supprimer</button>
+        </td>
       </tr>
     `).join('');
   } catch {
     document.getElementById('tableauConcours').innerHTML =
-      '<tr><td colspan="5" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
+      '<tr><td colspan="6" class="text-danger text-center py-3">Erreur de chargement.</td></tr>';
+  }
+}
+
+// ===== NOUVEAU : suppression d'un concours, avec double confirmation =====
+// (double confirm() volontaire ici : cette action est irréversible et supprime
+// en cascade candidatures, épreuves, réponses, résultats... de ce concours)
+async function supprimerConcours(id, titre) {
+  if (!confirm(`Supprimer définitivement le concours "${titre}" ?\n\nCela supprimera aussi TOUTES les candidatures, épreuves, réponses et résultats liés. Cette action est IRRÉVERSIBLE.`)) return;
+  if (!confirm(`Dernière confirmation : voulez-vous vraiment supprimer "${titre}" et toutes ses données ?`)) return;
+
+  try {
+    const res = await fetch(`${API}/concours`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      chargerTableau();
+    } else {
+      alert(data.message || 'Erreur lors de la suppression du concours');
+    }
+  } catch {
+    alert('Erreur réseau lors de la suppression du concours');
   }
 }
 
@@ -433,7 +461,8 @@ async function chargerEpreuvesAttente() {
             <button class="btn btn-outline-secondary btn-sm" onclick="ouvrirPanneauSalles(${e.id}, '${escapeHtml(e.titre).replace(/'/g, "\\'")}')">🏫 Salles</button>
             <a href="sujet.html?id=${e.id}" target="_blank" class="btn btn-outline-primary btn-sm">👁️ Voir le sujet</a>
             ${e.modifiable == 1
-              ? `<button class="btn btn-warning btn-sm btn-modifier-epreuve" data-id="${e.id}" data-titre="${escapeHtml(e.titre)}">✏️ Modifier</button>`
+              ? `<button class="btn btn-warning btn-sm btn-modifier-epreuve" data-id="${e.id}" data-titre="${escapeHtml(e.titre)}">✏️ Modifier</button>
+                 <button class="btn btn-outline-danger btn-sm" onclick="supprimerEpreuve(${e.id}, '${escapeHtml(e.titre).replace(/'/g, "\\'")}')">🗑 Supprimer</button>`
               : `<button class="btn btn-secondary btn-sm" disabled title="Épreuve déjà débutée">🔒 Verrouillée</button>`
             }
           </div>
@@ -447,6 +476,29 @@ async function chargerEpreuvesAttente() {
   } catch {
     document.getElementById('listeEpreuvesAttente').innerHTML =
       '<p class="text-danger text-center py-3">Erreur de chargement.</p>';
+  }
+}
+
+// ===== NOUVEAU : suppression d'une épreuve, avec double confirmation =====
+async function supprimerEpreuve(id, titre) {
+  if (!confirm(`Supprimer définitivement l'épreuve "${titre}" ?\n\nCela supprimera aussi ses questions, salles et réponses liées. Cette action est IRRÉVERSIBLE.`)) return;
+  if (!confirm(`Dernière confirmation : voulez-vous vraiment supprimer "${titre}" ?`)) return;
+
+  try {
+    const res = await fetch(`${API}/epreuves`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      chargerEpreuvesAttente();
+    } else {
+      alert(data.message || "Erreur lors de la suppression de l'épreuve");
+    }
+  } catch {
+    alert('Erreur réseau lors de la suppression');
   }
 }
 

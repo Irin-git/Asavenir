@@ -3,44 +3,9 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/auth.php';
 require_once __DIR__ . '/../utils/notifier.php';
-
-// ⚠️ Fonction placée ici, au niveau racine du script (jamais imbriquée dans un autre bloc),
-// pour pouvoir être appelée depuis n'importe où plus bas dans le fichier
-function recalculerClassement($conn, $concours_id) {
-    // Récupère le nombre de places disponibles pour ce concours
-    $nbStmt = $conn->prepare("SELECT nb_places FROM concours WHERE id = ?");
-    $nbStmt->execute([$concours_id]);
-    $nb_places = $nbStmt->fetchColumn();
-
-    // Récupère tous les résultats du concours, triés du meilleur au moins bon
-    $listStmt = $conn->prepare("
-        SELECT r.id, r.note_totale
-        FROM resultats r
-        INNER JOIN candidatures c ON r.candidature_id = c.id
-        WHERE c.concours_id = ?
-        ORDER BY r.note_totale DESC
-    ");
-    $listStmt->execute([$concours_id]);
-    $liste = $listStmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // On attribue un rang à chaque candidat et on déduit sa mention finale
-    $rang = 1;
-    foreach ($liste as $ligne) {
-        // Ordre de priorité fixé par le cahier des charges :
-        // être dans le nombre de places disponibles prime sur la simple moyenne
-        if ($nb_places !== null && $rang <= $nb_places) {
-            $mention = 'Admis';
-        } elseif ($ligne['note_totale'] >= 10) {
-            $mention = 'Ajourné';
-        } else {
-            $mention = 'Rejeté';
-        }
-
-        $upd = $conn->prepare("UPDATE resultats SET rang = ?, mention = ? WHERE id = ?");
-        $upd->execute([$rang, $mention, $ligne['id']]);
-        $rang++;
-    }
-}
+// CORRECTIF : recalculerClassement() et verifierEtCalculerResultat() vivent maintenant
+// dans ce fichier partagé, réutilisé aussi par reponses.php (voir explication dans ce fichier)
+require_once __DIR__ . '/../utils/resultats_helper.php';
 
 // ⚠️ Vérifie qu'un jury est bien affecté à une épreuve précise
 // avant de le laisser lire ou noter les copies de celle-ci.
@@ -534,53 +499,8 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
     $nonNotees = $check->fetchColumn();
 
     if ($nonNotees == 0) {
-
-        // 3. Calculer la note totale pondérée par coefficient
-        // Étape A : note obtenue/possible PAR ÉPREUVE
-        $parEpreuveStmt = $conn->prepare("
-            SELECT  
-                e.id AS epreuve_id,
-                e.coefficient,
-                SUM(CASE 
-                        WHEN r.points_obtenus IS NOT NULL THEN r.points_obtenus
-                        WHEN r.est_correcte = 1 THEN q.points
-                        ELSE 0
-                    END) AS obtenu_epreuve,
-                SUM(q.points) AS possible_epreuve
-            FROM reponses r
-            INNER JOIN questions q ON r.question_id = q.id
-            INNER JOIN epreuves e ON q.epreuve_id = e.id
-            WHERE r.candidature_id = ?
-            GROUP BY e.id, e.coefficient
-        ");
-        $parEpreuveStmt->execute([$candidature_id]);
-        $epreuvesData = $parEpreuveStmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Étape B : moyenne pondérée sur toutes les épreuves du concours
-        $somme_ponderee = 0;
-        $somme_coefficients = 0;
-
-        foreach ($epreuvesData as $ep) {
-            $note_epreuve_sur_20 = $ep['possible_epreuve'] > 0
-                ? ($ep['obtenu_epreuve'] / $ep['possible_epreuve']) * 20
-                : 0;
-
-            $somme_ponderee += $note_epreuve_sur_20 * $ep['coefficient'];
-            $somme_coefficients += $ep['coefficient'];
-        }
-
-        $note_totale = $somme_coefficients > 0 ? round($somme_ponderee / $somme_coefficients, 2) : 0;
-
-        // 4. Insérer ou mettre à jour le résultat de ce candidat
-        $upsert = $conn->prepare("
-            INSERT INTO resultats (candidature_id, note_totale, date_publication)
-            VALUES (?, ?, NOW())
-            ON DUPLICATE KEY UPDATE note_totale = VALUES(note_totale), date_publication = NOW()
-        ");
-        $upsert->execute([$candidature_id, $note_totale]);
-
-        // 5. Recalculer le classement de TOUT le concours (impact global, car un nouveau résultat peut changer les rangs)
-        recalculerClassement($conn, $concours_id);
+        // 3. Calcul + upsert du résultat + recalcul du classement, factorisés dans le fichier partagé
+        verifierEtCalculerResultat($conn, $candidature_id);
     }
 
     http_response_code(200);

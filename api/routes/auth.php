@@ -19,7 +19,7 @@ function genererReponseConnexion($user, $secretKey) {
         "id"    => $user['id'],
         "email" => $user['email'],
         "role"  => $user['role'],
-        "exp"   => time() + (60 * 60 * 24)
+        "exp"   => time() + (60 * 60 * 24 * 30) // 30 jours (au lieu de 24h) : évite de redemander la 2FA trop souvent
     ];
 
     $token = JWT::encode($payload, $secretKey, 'HS256');

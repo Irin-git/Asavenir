@@ -166,6 +166,59 @@ if ($method === 'POST') {
     http_response_code(403);
     echo json_encode(["message" => "Accès refusé"]);
 
+// DELETE — Supprimer une seule épreuve et tout ce qui en dépend (admin seulement)
+} elseif ($method === 'DELETE') {
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès refusé"]);
+        exit();
+    }
+
+    $conn = (new Database())->connect();
+    $epreuve_id = $data['id'] ?? null;
+
+    if (!$epreuve_id) {
+        http_response_code(400);
+        echo json_encode(["message" => "id manquant"]);
+        exit();
+    }
+
+    $verif = $conn->prepare("SELECT id, date_epreuve FROM epreuves WHERE id = ?");
+    $verif->execute([$epreuve_id]);
+    $epreuve = $verif->fetch(PDO::FETCH_ASSOC);
+
+    if (!$epreuve) {
+        http_response_code(404);
+        echo json_encode(["message" => "Épreuve introuvable"]);
+        exit();
+    }
+
+    // Même verrou temporel que pour les questions : on ne supprime pas une épreuve déjà commencée
+    if (strtotime($epreuve['date_epreuve']) <= time()) {
+        http_response_code(403);
+        echo json_encode(["message" => "Suppression impossible : l'épreuve a déjà débuté ou est terminée"]);
+        exit();
+    }
+
+    $conn->beginTransaction();
+    try {
+        $conn->prepare("DELETE FROM choix_reponses WHERE question_id IN (SELECT id FROM questions WHERE epreuve_id = ?)")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM reponses WHERE question_id IN (SELECT id FROM questions WHERE epreuve_id = ?)")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM exclusions WHERE epreuve_id = ?")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM affectations_salle WHERE epreuve_id = ?")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM jury_affectations_epreuve WHERE epreuve_id = ?")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM salles_epreuve WHERE epreuve_id = ?")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM questions WHERE epreuve_id = ?")->execute([$epreuve_id]);
+        $conn->prepare("DELETE FROM epreuves WHERE id = ?")->execute([$epreuve_id]);
+
+        $conn->commit();
+        echo json_encode(["message" => "Épreuve et toutes ses données associées supprimées ✅"]);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        http_response_code(500);
+        echo json_encode(["message" => "Erreur lors de la suppression", "erreur" => $e->getMessage()]);
+    }
+
 } else {
     http_response_code(405);
     echo json_encode(["message" => "Méthode non autorisée"]);

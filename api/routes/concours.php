@@ -72,6 +72,80 @@ elseif ($method === 'POST') {
     
     echo json_encode(["message" => "Concours créé ✅"]);
 
+// DELETE — Supprimer un concours ET toutes les données qui en dépendent (admin seulement)
+// NOUVEAU : évite d'avoir à supprimer à la main dans phpMyAdmin, ce qui laissait des
+// données orphelines pointant vers des ID réutilisés par la suite (bug de "casiers réutilisés").
+} elseif ($method === 'DELETE') {
+    $user = verifierToken();
+
+    if ($user->role !== 'admin') {
+        http_response_code(403);
+        echo json_encode(["message" => "Accès refusé, admin seulement"]);
+        exit();
+    }
+
+    $concours_id = $data['id'] ?? null;
+    if (!$concours_id) {
+        http_response_code(400);
+        echo json_encode(["message" => "id manquant"]);
+        exit();
+    }
+
+    $db = new Database();
+    $conn = $db->connect();
+
+    $verif = $conn->prepare("SELECT id FROM concours WHERE id = ?");
+    $verif->execute([$concours_id]);
+    if (!$verif->fetch()) {
+        http_response_code(404);
+        echo json_encode(["message" => "Concours introuvable"]);
+        exit();
+    }
+
+    $conn->beginTransaction();
+    try {
+        // On récupère d'abord les ID des enfants directs, pour supprimer les petits-enfants
+        $epreuveIds = $conn->prepare("SELECT id FROM epreuves WHERE concours_id = ?");
+        $epreuveIds->execute([$concours_id]);
+        $epreuveIds = $epreuveIds->fetchAll(PDO::FETCH_COLUMN);
+
+        $candidatureIds = $conn->prepare("SELECT id FROM candidatures WHERE concours_id = ?");
+        $candidatureIds->execute([$concours_id]);
+        $candidatureIds = $candidatureIds->fetchAll(PDO::FETCH_COLUMN);
+
+        // ----- Tout ce qui dépend des CANDIDATURES -----
+        if (!empty($candidatureIds)) {
+            $in = implode(',', array_fill(0, count($candidatureIds), '?'));
+            $conn->prepare("DELETE FROM reponses WHERE candidature_id IN ($in)")->execute($candidatureIds);
+            $conn->prepare("DELETE FROM exclusions WHERE candidature_id IN ($in)")->execute($candidatureIds);
+            $conn->prepare("DELETE FROM documents WHERE candidature_id IN ($in)")->execute($candidatureIds);
+            $conn->prepare("DELETE FROM resultats WHERE candidature_id IN ($in)")->execute($candidatureIds);
+            $conn->prepare("DELETE FROM affectations_salle WHERE candidature_id IN ($in)")->execute($candidatureIds);
+        }
+
+        // ----- Tout ce qui dépend des ÉPREUVES -----
+        if (!empty($epreuveIds)) {
+            $in = implode(',', array_fill(0, count($epreuveIds), '?'));
+            $conn->prepare("DELETE FROM choix_reponses WHERE question_id IN (SELECT id FROM questions WHERE epreuve_id IN ($in))")->execute($epreuveIds);
+            $conn->prepare("DELETE FROM questions WHERE epreuve_id IN ($in)")->execute($epreuveIds);
+            $conn->prepare("DELETE FROM salles_epreuve WHERE epreuve_id IN ($in)")->execute($epreuveIds);
+            $conn->prepare("DELETE FROM jury_affectations_epreuve WHERE epreuve_id IN ($in)")->execute($epreuveIds);
+        }
+
+        // ----- Enfants directs du concours, puis le concours lui-même -----
+        $conn->prepare("DELETE FROM epreuves WHERE concours_id = ?")->execute([$concours_id]);
+        $conn->prepare("DELETE FROM jury_affectations_concours WHERE concours_id = ?")->execute([$concours_id]);
+        $conn->prepare("DELETE FROM candidatures WHERE concours_id = ?")->execute([$concours_id]);
+        $conn->prepare("DELETE FROM concours WHERE id = ?")->execute([$concours_id]);
+
+        $conn->commit();
+        echo json_encode(["message" => "Concours et toutes ses données associées supprimés ✅"]);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        http_response_code(500);
+        echo json_encode(["message" => "Erreur lors de la suppression", "erreur" => $e->getMessage()]);
+    }
+
 } else {
     http_response_code(405);
     echo json_encode(["message" => "Méthode non autorisée"]);
