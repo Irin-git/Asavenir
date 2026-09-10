@@ -189,11 +189,16 @@ async function chargerQuestions() {
             </div>
           `;
         } else if (extension === 'pdf') {
+          // CORRECTIF : avant, target="_blank" ouvrait un nouvel onglet -> ça déclenchait
+          // à tort les vigiles "changement d'onglet" ET "perte de focus" ET "sortie du
+          // plein écran", causant une exclusion automatique du candidat. On affiche
+          // maintenant le PDF dans une fenêtre modale À L'INTÉRIEUR de la même page :
+          // aucun changement d'onglet, aucune perte de focus, aucune sortie de plein écran.
           mediaHtml = `
             <div class="mb-3">
-              <a href="${urlMedia}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="ouvrirDocumentModal('${urlMedia}')">
                 📄 Voir le document joint (PDF)
-              </a>
+              </button>
             </div>
           `;
         }
@@ -584,4 +589,41 @@ async function verifierAcces() {
 
 if (epreuveId) {
   verifierAcces();
+}
+
+// ===== NOUVEAU : visionneuse PDF intégrée (corrige l'exclusion accidentelle) =====
+// La fenêtre modale est créée une seule fois et réutilisée, injectée directement
+// dans le <body> -> reste dans la même page, ne casse ni le focus ni le plein écran.
+function ouvrirDocumentModal(url) {
+  let modal = document.getElementById('modalDocumentPdf');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalDocumentPdf';
+    modal.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    `;
+    modal.innerHTML = `
+      <div style="background:#fff; width:100%; max-width:900px; height:90vh; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #eee;">
+          <strong>Document joint</strong>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fermerDocumentModal()">✕ Fermer</button>
+        </div>
+        <iframe id="iframeDocumentPdf" style="flex:1; border:none;"></iframe>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('iframeDocumentPdf').src = url;
+  modal.style.display = 'flex';
+}
+
+function fermerDocumentModal() {
+  const modal = document.getElementById('modalDocumentPdf');
+  if (modal) {
+    modal.style.display = 'none';
+    document.getElementById('iframeDocumentPdf').src = ''; // stoppe le chargement/audio éventuel du PDF
+  }
 }
