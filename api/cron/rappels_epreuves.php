@@ -1,4 +1,8 @@
 <?php
+// Même correctif que dans api/index.php : ce script ne passe pas par le routeur
+// principal, donc le fuseau horaire doit être réglé ici aussi.
+date_default_timezone_set('Indian/Antananarivo');
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/notifier.php';
 

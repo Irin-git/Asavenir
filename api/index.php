@@ -1,4 +1,10 @@
-    <?php
+<?php
+    // CORRECTIF : sans ce réglage, PHP utilise UTC par défaut sur InfinityFree,
+    // ce qui décale de 3h toutes les comparaisons de dates (accessibilité des
+    // épreuves, verrouillage des modifications, etc.) par rapport à l'heure réelle
+    // des utilisateurs à Madagascar.
+    date_default_timezone_set('Indian/Antananarivo');
+
     header("Access-Control-Allow-Origin: *");
     header("Content-Type: application/json; charset=UTF-8");
     header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
