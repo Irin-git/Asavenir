@@ -52,7 +52,7 @@ foreach ($epreuves as $epreuve) {
             "Rappel : épreuve à venir",
             "Votre épreuve \"{$epreuve['titre']}\" ({$epreuve['concours_titre']}) débute le $dateFormatee$mentionSalle.",
             'rappel',
-            '/concours_fp/public/epreuves.html'
+            '/epreuves.html'
         );
         $totalNotifies++;
     }

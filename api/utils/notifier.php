@@ -30,7 +30,7 @@ function envoyerPushNotification($conn, $id_destinataire, $titre, $message, $lie
         $payload = json_encode([
             'titre' => $titre,
             'message' => $message,
-            'lien' => $lien ?? '/concours_fp/public/concours.html'
+            'lien' => $lien ?? '/concours.html'
         ]);
 
         foreach ($abonnements as $abo) {

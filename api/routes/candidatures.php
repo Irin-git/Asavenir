@@ -155,7 +155,7 @@ elseif ($method === 'PUT') {
                         "Candidature validée",
                         "Votre candidature au concours \"{$info['concours_titre']}\" a été validée. Vous êtes convoqué(e) aux épreuves.",
                         'convocation',
-                        '/concours_fp/public/epreuves.html',
+                        '/epreuves.html',
                         $user->id
                     );
                 } else {

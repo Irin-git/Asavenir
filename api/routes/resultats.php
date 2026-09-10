@@ -562,7 +562,7 @@ if ($method === 'GET' && isset($_GET['a_corriger'])) {
             "Résultats disponibles",
             "Les résultats du concours \"$concoursTitre\" sont désormais consultables.",
             'resultat',
-            '/concours_fp/public/mes_resultats.html',
+            '/mes_resultats.html',
             $user->id
         );
     }
