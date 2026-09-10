@@ -165,7 +165,7 @@ elseif ($method === 'PUT') {
                         "Candidature non retenue",
                         "Votre candidature au concours \"{$info['concours_titre']}\" n'a pas été retenue.",
                         'rejet',
-                        '/concours_fp/public/concours.html',
+                        '/concours.html',
                         $user->id
                     );
                 }
